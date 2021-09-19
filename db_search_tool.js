@@ -482,7 +482,7 @@
                 }
             }
             let wordSearchPanelHtml = '';
-            let headHtml = StringFormat(`<div style="height: 30px;"><a href="https://movie.douban.com/" target="_blank"><img style="width: 30px;" src="${IconBase64}" title="去豆瓣电影" /></a><div style="margin-left: 5px; display: inline-block; height: 30px; line-height: 30px; overflow: hidden;"><select>{1}</select><div id="show_search_list_btn" style="margin-left: 10px; display: inline; color: #999; font-size: 10px;">展示搜索列表</div></div></div>`, randomCode, searchEngineOptionsHtml);
+            let headHtml = StringFormat(`<div style="height: 30px;"><a href="https://movie.douban.com/" target="_blank"><img style="width: 30px;" src="${IconBase64}" title="去豆瓣电影" /></a><div style="margin-left: 5px; display: inline-block; height: 30px; line-height: 30px;"><select>{1}</select><div id="show_search_list_btn" style="margin-left: 10px; display: inline; color: #999; font-size: 10px;">展示搜索列表</div></div></div>`, randomCode, searchEngineOptionsHtml);
             wordSearchPanelHtml += headHtml;
             wordSearchPanelHtml += '<div class="db_search_content">';
             if (options.searchPattern == 'automatic') {
