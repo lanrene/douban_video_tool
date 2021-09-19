@@ -1,6 +1,7 @@
 // ==UserScript==
 // @name         豆瓣电影划词搜索助手
-// @version      0.0.8
+// @version      0.1.0
+// @namespace    https://github.com/lanrene/douban_video_tool
 // @description  通过滑动选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
 // @icon         https://img3.doubanio.com/f/movie/d59b2715fdea4968a450ee5f6c95c7d7a2030065/pics/movie/apple-touch-icon.png
 // @author       lenrene
@@ -12,7 +13,6 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @connect      cdn.jsdelivr.net
-// @connect      cdnjs.cloudflare.com
 // @connect      movie.querydata.org
 // @connect      douban.com
 // @require      https://cdn.jsdelivr.net/npm/jquery@2.2.3/dist/jquery.min.js
@@ -30,6 +30,7 @@
         defaultsearchengine: "db",   //默认搜索引擎
         searchPattern: "automatic", // 搜索模式
         selectPattern: "select", // 划词模式
+        selectKey: "Ctrl", // 划词键
     };
 
 
@@ -262,7 +263,7 @@
                                                 }
                                                 resolve(videoInfo);
                                             } catch (e) {
-                                                console.log('解析失败', item.innerText, e)
+                                                logger.log('解析失败', item.innerText, e)
                                             }
                                         }
                                     })
@@ -327,7 +328,7 @@
                     onload: function (response) {
                         if (response.status == 200) {
                             let doubanInfo = JSON.parse(response.responseText);
-                            if (doubanInfo&&doubanInfo.data) {
+                            if (doubanInfo && doubanInfo.data) {
                                 let data = doubanInfo.data[0];
                                 let videoInfo = {
                                     title: data.name,
@@ -629,7 +630,7 @@
 
     //设置面板
     let SettingPanel = {
-        config: [{ title: "", name: "", item: [{ code: "", text: "" }] }],
+        config: [{ title: "", name: "", type: "", attrName: "", item: [{ code: "", text: "" }] }],
         Create: function (popBoxEl, randomCode) {
             let self = this;
             let settingHtml = [];
@@ -641,7 +642,7 @@
                 settingHtml.push(StringFormat('<div style="font-size: 14px; padding-bottom: 3px;">{0}</div>', configItem.title));
                 for (let itemIndex = 0; itemIndex < configItem.item.length; itemIndex++) {
                     let itemObj = configItem.item[itemIndex];
-                    settingHtml.push(StringFormat('<div style="padding-bottom: 0px; margin-left: 10px;"><label style="font-size: 14px; cursor: pointer;"><input type="radio" name="search{3}{0}" style="cursor: pointer;" value="{1}">{2}</label></div>', randomCode, itemObj.code, itemObj.text, configItem.name));
+                    settingHtml.push(StringFormat('<div style="margin-left: 10px; float: left;"><label style="font-size: 14px; cursor: pointer;"><input type="radio" name="search{3}{0}" style="cursor: pointer;" value="{1}">{2}</label></div>', randomCode, itemObj.code, itemObj.text, configItem.name));
                 }
                 settingHtml.push('</div>');
             }
@@ -663,12 +664,11 @@
                 self.Update(randomCode);
                 //保存设置
                 $panel.find(StringFormat("#panelBody{0} #saveBtn{0}", randomCode)).click(function (e) {
-                    let defaultSearchEngine = $panel.find(StringFormat("#panelBody{0} input[name='searchEngine{0}']:checked", randomCode)).val();
-                    options.defaultsearchengine = defaultSearchEngine;
-                    let searchPattern = $panel.find(StringFormat("#panelBody{0} input[name='searchPattern{0}']:checked", randomCode)).val();
-                    options.searchPattern = searchPattern;
-                    let selectPattern = $panel.find(StringFormat("#panelBody{0} input[name='searchSelect{0}']:checked", randomCode)).val();
-                    options.selectPattern = selectPattern;
+                    self.config.forEach((item) => {
+                        let selecter = `#panelBody{0} input[name='search${item.name}{0}']:checked`;
+                        let value = $panel.find(StringFormat(selecter, randomCode)).val();
+                        options[item.attrName] = value;
+                    });
                     SetSettingOptions();
                     $panel.find(StringFormat("#panelBody{0} #saveStatus{0}", randomCode)).fadeIn(function () {
                         setTimeout(function () {
@@ -679,31 +679,32 @@
             });
         },
         Update: function (randomCode) {
+            let self = this;
             GetSettingOptions();
             Panel.Update(function ($panel) {
-                $panel.find(StringFormat("#panelBody{0} input[name='searchEngine{0}'][value='{1}']", randomCode, options.defaultsearchengine)).prop("checked", true);
-                $panel.find(StringFormat("#panelBody{0} input[name='searchPattern{0}'][value='{1}']", randomCode, options.searchPattern)).prop("checked", true);
-                $panel.find(StringFormat("#panelBody{0} input[name='searchSelect{0}'][value='{1}']", randomCode, options.selectPattern)).prop("checked", true);
+                self.config.forEach((item) => {
+                    let selecter = `#panelBody{0} input[name='search${item.name}{0}'][value='{1}']`;
+                    $panel.find(StringFormat(selecter, randomCode, options[item.attrName])).prop("checked", true);
+                });
             });
         },
         InitConfig: function () {
             this.config = [];
-            let configObj = { title: "", name: "", item: [{ code: "", text: "" }] };
-            configObj.title = "默认搜索引擎：";
-            configObj.name = "Engine";
-            configObj.item = [];
+            let engineConfigObj = { title: "默认搜索引擎：", name: "Engine", attrName: "defaultsearchengine", item: [] };
             for (let k in Search.searchEngineList) {
                 if (Search.searchEngineList.hasOwnProperty(k)) {
                     let v = Search.searchEngineList[k].codeText;
-                    configObj.item.push({ code: k, text: v });
+                    engineConfigObj.item.push({ code: k, text: v });
                 }
             }
-            this.config.push(configObj);
+            this.config.push(engineConfigObj);
 
-            let configObj2 = { title: "搜索模式：", name: "Pattern", item: [{ code: "automatic", text: "自动" }, { code: "manual", text: "手动" }] };
-            this.config.push(configObj2);
-            let configObj3 = { title: "划词模式：", name: "Select", item: [{ code: "select", text: "划词" }, { code: "hold", text: "Ctrl + 划词" }] };
-            this.config.push(configObj3);
+            let patternConfigObj = { title: "搜索模式：", name: "Pattern", attrName: "searchPattern", item: [{ code: "automatic", text: "自动" }, { code: "manual", text: "手动" }] };
+            this.config.push(patternConfigObj);
+            let selectConfigObj = { title: "划词模式：", name: "Select", attrName: "selectPattern", item: [{ code: "select", text: "划词" }, { code: "hold", text: "划词键 + 划词" }] };
+            this.config.push(selectConfigObj);
+            let keyConfigObj = { title: "划词键：", name: "Key", attrName: "selectKey", item: [{ code: "Ctrl", text: "Ctrl" }, { code: "Alt", text: "Alt" }] };
+            this.config.push(keyConfigObj);
         }
     };
 
@@ -738,18 +739,20 @@
             let isSelect = false;
             let isPanel = false;
             let isWordSearchIcon = false;
-            let isHoldCtrlKey = false;
+            let isHoldKey = false;
             $doc.on({
                 "selectionchange": function (e) {
                     isSelect = true;
                 },
                 "keydown": function (e) {
-                    if (e.ctrlKey || e.metaKey) {
-                        isHoldCtrlKey = true;
+                    let ctrlKey = options.selectKey == 'Ctrl' && (e.ctrlKey || e.metaKey);
+                    let altKey = options.selectKey == 'Alt' && (e.altKey);
+                    if (ctrlKey || altKey) {
+                        isHoldKey = true;
                     }
                 },
                 "keyup": function (e) {
-                    isHoldCtrlKey = false;
+                    isHoldKey = false;
                 },
                 "mousedown": function (e) {
                     let $targetEl = $(e.target);
@@ -771,7 +774,7 @@
                 },
                 "mouseup": function (e) {
                     let selectText = window.getSelection().toString().trim();
-                    let holdKey = options.selectPattern == 'select' || (options.selectPattern == 'hold' && isHoldCtrlKey);
+                    let holdKey = options.selectPattern == 'select' || (options.selectPattern == 'hold' && isHoldKey);
                     if (!isPanel && isSelect && holdKey && selectText) {
                         $wordSearchIcon.show().css({
                             left: e.pageX + 'px',
