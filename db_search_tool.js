@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         豆瓣电影划词搜索助手
-// @version      0.1.1
+// @version      0.1.2
 // @namespace    https://github.com/lanrene/douban_video_tool
 // @description  通过滑动选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
 // @icon         https://img3.doubanio.com/f/movie/d59b2715fdea4968a450ee5f6c95c7d7a2030065/pics/movie/apple-touch-icon.png
@@ -482,7 +482,7 @@
                 }
             }
             let wordSearchPanelHtml = '';
-            let headHtml = StringFormat(`<div style="height: 30px;"><a href="https://movie.douban.com/" target="_blank"><img style="width: 30px;" src="${IconBase64}" title="去豆瓣电影" /></a><div style="margin-left: 5px; display: inline-block; height: 30px; line-height: 30px;"><select>{1}</select><div id="show_search_list_btn" style="margin-left: 10px; display: inline; color: #999; font-size: 10px;">展示搜索列表</div></div></div>`, randomCode, searchEngineOptionsHtml);
+            let headHtml = StringFormat(`<div style="height: 30px"><a style="display: inline-block;" href="https://movie.douban.com/" target="_blank"><img style="width: 30px;vertical-align: bottom;" src="${IconBase64}" title="去豆瓣电影" /></a><div style="margin-left: 5px; display: inline-block; height: 30px; line-height: 30px;"><select style="vertical-align: top;">{1}</select><div id="show_search_list_btn" style="margin-left: 10px; display: inline; color: #999; font-size: 10px;vertical-align: top;">展示搜索列表</div></div></div>`, randomCode, searchEngineOptionsHtml);
             wordSearchPanelHtml += headHtml;
             wordSearchPanelHtml += '<div class="db_search_content">';
             if (options.searchPattern == 'automatic') {
