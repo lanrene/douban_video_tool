@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         豆瓣电影划词搜索助手
-// @version      0.1.2
+// @version      0.1.3
 // @namespace    https://github.com/lanrene/douban_video_tool
 // @description  通过滑动选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
 // @icon         https://img3.doubanio.com/f/movie/d59b2715fdea4968a450ee5f6c95c7d7a2030065/pics/movie/apple-touch-icon.png
@@ -31,6 +31,7 @@
         searchPattern: "automatic", // 搜索模式
         selectPattern: "select", // 划词模式
         selectKey: "Ctrl", // 划词键
+        selectIconPosition: "right", // 划词图标位置
     };
 
     // 图标
@@ -706,6 +707,8 @@
             this.config.push(selectConfigObj);
             let keyConfigObj = { title: "划词键：", name: "Key", attrName: "selectKey", item: [{ code: "Ctrl", text: "Ctrl" }, { code: "Alt", text: "Alt" }] };
             this.config.push(keyConfigObj);
+            let positionConfigObj = { title: "图标位置：", name: "Position", attrName: "selectIconPosition", item: [{ code: "right", text: "右" }, { code: "left", text: "左" }, { code: "top", text: "上" }] };
+            this.config.push(positionConfigObj);
         }
     };
 
@@ -776,10 +779,20 @@
                     let selectText = window.getSelection().toString().trim();
                     let holdKey = options.selectPattern == 'select' || (options.selectPattern == 'hold' && isHoldKey);
                     if (!isPanel && isSelect && holdKey && selectText) {
+                        let left = e.pageX;
+                        let top = e.pageY + 12;
+                        if (options.selectIconPosition == 'left') {
+                            left -= 30;
+                        }
+                        if (options.selectIconPosition == 'top') {
+                            top -= 50;
+                        }
+
                         $wordSearchIcon.show().css({
-                            left: e.pageX + 'px',
-                            top: e.pageY + 12 + 'px'
+                            left: left + 'px',
+                            top: top + 'px'
                         });
+                        console.log(e.pageX, e.pageY, e)
                         isSelect = false;
                     }
                 }
