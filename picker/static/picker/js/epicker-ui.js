@@ -13,15 +13,16 @@
 
     const cmEditor = document.querySelector('.codeMirrorContainer');
 
+    const clickPosition = { clientX: 1, clientY: 1 };
+
     const onSvgClicked = function (ev) {
         if (pickerRoot.classList.contains('paused')) {
             unpausePicker();
             return;
         }
 
-        let { x, y } = calculationDialogPosition(ev.clientX, ev.clientY);
-        dialog.style.top = y + 'px';
-        dialog.style.left = x + 'px';
+        clickPosition.clientX = ev.clientX;
+        clickPosition.clientY = ev.clientY;
 
         sendMessageToParent({
             what: 'filterElementAtPoint',
@@ -31,27 +32,25 @@
         })
     };
 
-    const calculationDialogPosition = function (x, y) {
-        let result = { x, y };
+    const calculationDialogPosition = function () {
+        let x = clickPosition.clientX;
+        let y = clickPosition.clientY;
         let width = document.body.clientWidth;
         let height = document.body.clientHeight;
-        let dialogWidth = 420;
-        if (width>dialogWidth&&width<dialogWidth*2.5) {
-            dialogWidth = width / 2.5;
-        }
+
+        let dialogWidth = dialog.offsetWidth;
+        let dialogHeight = 135;
 
         if (x > width - dialogWidth) {
-            result.x = width - dialogWidth;
-            if (result.x<2) {
-                result.x = 2;
-            }
+            x = width - dialogWidth - 2;
         }
 
-        if (y > height - 125) {
-            result.y = width - 125;
+        if (y > height - dialogHeight) {
+            y = width - dialogHeight - 2;
         }
 
-        return result;
+        dialog.style.top = y + 'px';
+        dialog.style.left = x + 'px';
     };
 
     const onQuitClicked = function () {
@@ -118,6 +117,7 @@
 
     const pausePicker = function () {
         pickerRoot.classList.add('paused');
+        calculationDialogPosition();
         svgListening(false);
     };
 

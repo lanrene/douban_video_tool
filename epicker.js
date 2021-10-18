@@ -113,17 +113,22 @@
             let temp = []
             if (elem) {
                 const forFn = function (ele) {
-                    if (ele.childNodes.length > 0) {
+                    if (ele.childNodes.length > 0&&ele.nodeName!='A') {
                         let children = Array.from(ele.childNodes);
                         children.forEach((c) => {
                             forFn(c);
                         })
                     } else {
-                        let text = ele.textContent.trim();
-                        if (text) {
-                            temp.push(text);
+                        let text = ele.textContent;
+                        if (ele.nodeName=='INPUT') {
+                            text = ele.value;
+                        } else if (ele.nodeName=='A') {
+                            text = ele.innerText;
                         }
-
+                        
+                        if (text) {
+                            temp.push(text.trim());
+                        }
                     }
                 }
                 forFn(elem);
@@ -263,6 +268,17 @@
             pickerRoot.setAttribute('name', 'myFrame');
             pickerRoot.setAttribute('src', this.iframeHost + '/picker.html')
             pickerRoot.onload = function (e) {
+                let ifDoc = pickerRoot.contentDocument || {};
+                let title = ifDoc.title;
+
+                if (!title || title.indexOf("404") >= 0 || title.indexOf("错误") >= 0 || title.indexOf('no such file') >= 0) {
+                    self.quitPicker();
+                    if (error) {
+                        error(title||'组件初始化失败');
+                    }
+                    return;
+                }
+
                 if (success) {
                     success();
                 }
