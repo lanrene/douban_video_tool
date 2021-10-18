@@ -268,16 +268,16 @@
             pickerRoot.setAttribute('name', 'myFrame');
             pickerRoot.setAttribute('src', this.iframeHost + '/picker.html')
             pickerRoot.onload = function (e) {
-                let ifDoc = pickerRoot.contentDocument || {};
-                let title = ifDoc.title;
+                // let ifDoc = pickerRoot.contentDocument || {};
+                // let title = ifDoc.title;
 
-                if (!title || title.indexOf("404") >= 0 || title.indexOf("错误") >= 0 || title.indexOf('no such file') >= 0) {
-                    self.quitPicker();
-                    if (error) {
-                        error(title||'组件初始化失败');
-                    }
-                    return;
-                }
+                // if (!title || title.indexOf("404") >= 0 || title.indexOf("错误") >= 0 || title.indexOf('no such file') >= 0) {
+                //     self.quitPicker();
+                //     if (error) {
+                //         error(title||'组件初始化失败');
+                //     }
+                //     return;
+                // }
 
                 if (success) {
                     success();
