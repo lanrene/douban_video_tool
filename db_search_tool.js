@@ -18,7 +18,7 @@
 // @require      https://cdn.jsdelivr.net/npm/jquery@2.2.3/dist/jquery.min.js
 // @require      https://cdn.jsdelivr.net/npm/jquery.md5@1.0.2/index.min.js
 // @require      https://cdn.jsdelivr.net/gh/zyufstudio/jQuery@3a09ff54b33fc2ae489b5083174698b3fa83f4a7/jPopBox/dist/jPopBox.min.js
-// @require https://greasyfork.org/scripts/433824-%E8%B1%86%E7%93%A3%E5%88%92%E8%AF%8D%E5%8A%A9%E6%89%8B%E5%8F%96%E8%AF%8D%E9%81%AE%E7%BD%A9/code/%E8%B1%86%E7%93%A3%E5%88%92%E8%AF%8D%E5%8A%A9%E6%89%8B%E5%8F%96%E8%AF%8D%E9%81%AE%E7%BD%A9.js?version=980171
+// @require      https://greasyfork.org/scripts/433824-%E8%B1%86%E7%93%A3%E5%88%92%E8%AF%8D%E5%8A%A9%E6%89%8B%E5%8F%96%E8%AF%8D%E9%81%AE%E7%BD%A9/code/%E8%B1%86%E7%93%A3%E5%88%92%E8%AF%8D%E5%8A%A9%E6%89%8B%E5%8F%96%E8%AF%8D%E9%81%AE%E7%BD%A9.js?version=980171
 // ==/UserScript==
 
 (function () {
