@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         豆瓣电影划词搜索助手
-// @version      0.1.6
+// @version      0.1.7
 // @namespace    https://github.com/lanrene/douban_video_tool
 // @description  通过滑动选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
 // @icon         https://img3.doubanio.com/f/movie/d59b2715fdea4968a450ee5f6c95c7d7a2030065/pics/movie/apple-touch-icon.png
@@ -16,9 +16,7 @@
 // @connect      movie.querydata.org
 // @connect      douban.com
 // @require      https://cdn.jsdelivr.net/npm/jquery@2.2.3/dist/jquery.min.js
-// @require      https://cdn.jsdelivr.net/npm/jquery.md5@1.0.2/index.min.js
 // @require      https://cdn.jsdelivr.net/gh/zyufstudio/jQuery@3a09ff54b33fc2ae489b5083174698b3fa83f4a7/jPopBox/dist/jPopBox.min.js
-// @require      https://greasyfork.org/scripts/433824-%E8%B1%86%E7%93%A3%E5%88%92%E8%AF%8D%E5%8A%A9%E6%89%8B%E5%8F%96%E8%AF%8D%E9%81%AE%E7%BD%A9/code/%E8%B1%86%E7%93%A3%E5%88%92%E8%AF%8D%E5%8A%A9%E6%89%8B%E5%8F%96%E8%AF%8D%E9%81%AE%E7%BD%A9.js?version=980179
 // ==/UserScript==
 
 (function () {
@@ -647,22 +645,313 @@
         }
     };
 
+    // 选词
+    const doubanPickerTool = {
+        sessionId: '',
+        iframeHost: '',
+        textFilterCandidates: [],
+        targetElements: [],
+        pickerRoot: null,
+
+        initDoubanPicker: function (iframeHost) {
+            if (!iframeHost || this.sessionId) { return; }
+
+            this.sessionId = this.randomToken();
+            this.iframeHost = iframeHost;
+
+            // 主页面监听message事件,接收子组件的值
+            let self = this;
+            window.addEventListener('message', function (e) {
+                if (e.origin == self.iframeHost) {
+                    self.onDialogMessage(e.data)
+                }
+            }, false);
+        },
+
+        randomToken: function () {
+            const n = Math.random();
+            return String.fromCharCode(n * 26 + 97) +
+                Math.floor(
+                    (0.25 + n * 0.75) * Number.MAX_SAFE_INTEGER
+                ).toString(36).slice(-8);
+        },
+
+        getElementBoundingClientRect: function (elem) {
+            let rect = typeof elem.getBoundingClientRect === 'function'
+                ? elem.getBoundingClientRect()
+                : { height: 0, left: 0, top: 0, width: 0 };
+
+            if (rect.width !== 0 && rect.height !== 0) {
+                return rect;
+            }
+
+            let left = rect.left,
+                right = rect.right,
+                top = rect.top,
+                bottom = rect.bottom;
+
+            for (const child of elem.children) {
+                rect = this.getElementBoundingClientRect(child);
+                if (rect.width === 0 || rect.height === 0) {
+                    continue;
+                }
+                if (rect.left < left) { left = rect.left; }
+                if (rect.right > right) { right = rect.right; }
+                if (rect.top < top) { top = rect.top; }
+                if (rect.bottom > bottom) { bottom = rect.bottom; }
+            }
+
+            return {
+                height: bottom - top,
+                left,
+                top,
+                width: right - left
+            };
+        },
+
+        highlightElements: function (elems, force) {
+            if (
+                (force !== true) &&
+                (elems.length === this.targetElements.length) &&
+                (elems.length === 0 || elems[0] === this.targetElements[0])
+            ) {
+                return;
+            }
+            this.targetElements = [];
+
+            const ow = self.innerWidth;
+            const oh = self.innerHeight;
+            const islands = [];
+
+            for (const elem of elems) {
+                if (elem === this.pickerRoot) { continue; }
+                this.targetElements.push(elem);
+                const rect = this.getElementBoundingClientRect(elem);
+
+                if (
+                    rect.left > ow || rect.top > oh ||
+                    rect.left + rect.width < 0 || rect.top + rect.height < 0
+                ) {
+                    continue;
+                }
+                islands.push(
+                    `M${rect.left} ${rect.top}h${rect.width}v${rect.height}h-${rect.width}z`
+                );
+            }
+
+            this.sendMessageToIframe({
+                ocean: `M0 0h${ow}v${oh}h-${ow}z`,
+                islands: islands.join(''),
+                what: "svgPaths"
+            });
+        },
+
+        textFilterFromElement: function (elem) {
+            if (elem === null) { return 0; }
+            if (elem.nodeType !== 1) { return 0; }
+            if (elem.nodeName === "HTML" || elem.nodeName === "BODY") { return 0; }
+            this.textFilterCandidates = this.getNodeText(elem);
+            return 1;
+        },
+
+        getNodeText: function (elem) {
+            let temp = []
+            if (elem) {
+                const forFn = function (ele) {
+                    if (ele.childNodes.length > 0&&ele.nodeName!='A') {
+                        let children = Array.from(ele.childNodes);
+                        children.forEach((c) => {
+                            forFn(c);
+                        })
+                    } else {
+                        let text = ele.textContent;
+                        if (ele.nodeName=='INPUT') {
+                            text = ele.value;
+                        } else if (ele.nodeName=='A') {
+                            text = ele.innerText;
+                        }
+                        
+                        if (text && text.trim()) {
+                            temp.push(text.trim());
+                        }
+                    }
+                }
+                forFn(elem);
+            }
+
+            return temp;
+        },
+
+        filtersFrom: function (x, y) {
+            this.textFilterCandidates.length = 0
+            let elem = null;
+            if (typeof x === 'number') {
+                elem = this.elementFromPoint(x, y);
+            } else if (x instanceof HTMLElement) {
+                elem = x;
+                x = undefined;
+            }
+
+            this.textFilterFromElement(elem);
+
+            return this.textFilterCandidates.length;
+        },
+
+        showDialog: function (options) {
+            this.sendMessageToIframe({
+                what: 'showDialog',
+                url: self.location.href,
+                text: this.textFilterCandidates,
+                options,
+            });
+        },
+
+        elementFromPoint: function (x, y) {
+            let lastX, lastY;
+
+            if (x !== undefined) {
+                lastX = x; lastY = y;
+            } else if (lastX !== undefined) {
+                x = lastX; y = lastY;
+            } else {
+                return null;
+            }
+            if (!this.pickerRoot) { return null; }
+            const magicAttr = `${this.sessionId}-clickblind`;
+            this.pickerRoot.setAttribute(magicAttr, '');
+            let elems = document.elementsFromPoint(x, y);
+            elems = elems.filter(ele => ele.name != 'myFrame') || [];
+            let elem = elems[0];
+
+            this.pickerRoot.removeAttribute(magicAttr);
+            return elem;
+        },
+
+        highlightElementAtPoint: function (mx, my) {
+            const elem = this.elementFromPoint(mx, my);
+            this.highlightElements(elem ? [elem] : []);
+        },
+
+        filterElementAtPoint: function (mx, my, broad) {
+            if (this.filtersFrom(mx, my) === 0) { return; }
+            this.showDialog({ broad });
+        },
+
+        onKeyPressed: function (ev) {
+            // Esc
+            if (ev.key === 'Escape' || ev.which === 27) {
+                ev.stopPropagation();
+                ev.preventDefault();
+                this.quitPicker();
+                return;
+            }
+        },
+
+        onViewportChanged: function () {
+            self.highlightElements(self.targetElements, true);
+        },
+
+        startPicker: function () {
+            this.pickerRoot.focus();
+
+            self.addEventListener('scroll', self.onViewportChanged, { passive: true });
+            self.addEventListener('resize', self.onViewportChanged, { passive: true });
+            self.addEventListener('keydown', self.onKeyPressed, true);
+        },
+
+        quitPicker: function () {
+            self.removeEventListener('scroll', self.onViewportChanged, { passive: true });
+            self.removeEventListener('resize', self.onViewportChanged, { passive: true });
+            self.removeEventListener('keydown', self.onKeyPressed, true);
+
+            if (this.pickerRoot === null) { return; }
+
+            this.pickerRoot.remove();
+            this.pickerRoot = null;
+
+            self.focus();
+        },
+
+        onDialogMessage: function (msg) {
+            switch (msg.what) {
+                case 'start':
+                    this.startPicker();
+                    if (this.targetElements.length === 0) {
+                        this.highlightElements([], true);
+                    }
+                    break;
+                case 'quitPicker':
+                    this.quitPicker();
+                    break;
+                case 'highlightElementAtPoint':
+                    this.highlightElementAtPoint(msg.mx, msg.my);
+                    break;
+                case 'filterElementAtPoint':
+                    this.filterElementAtPoint(msg.mx, msg.my, msg.broad);
+                    break;
+                case 'togglePreview':
+                    if (msg.state === false) {
+                        this.highlightElements(this.targetElements, true);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        },
+
+        sendMessageToIframe: function (msg) {
+            this.pickerRoot.contentWindow.postMessage(msg, this.iframeHost);
+        },
+
+        showPicker: function (success, error) {
+            const self = this;
+            if (this.pickerRoot) {
+                return;
+            }
+            const pickerRoot = document.createElement('iframe');
+            pickerRoot.setAttribute(this.sessionId, '');
+            pickerRoot.setAttribute('name', 'myFrame');
+            pickerRoot.setAttribute('src', this.iframeHost + '/picker.html')
+            pickerRoot.onload = function (e) {
+                let ifDoc = pickerRoot.contentDocument || {};
+                let title = ifDoc.title;
+             
+                if (title && (title.indexOf("404") >= 0 || title.indexOf("错误") >= 0 || title.indexOf('no such file') >= 0)) {
+                    self.quitPicker();
+                    if (error) {
+                        error(title||'组件初始化失败');
+                    }
+                    return;
+                }
+
+                if (success) {
+                    success();
+                }
+                setTimeout(() => {
+                    self.sendMessageToIframe({ what: 'connectionAccepted' })
+                });
+            };
+            this.pickerRoot = pickerRoot;
+            document.documentElement.append(pickerRoot);
+        },
+    }
+
     const picker = {
         showPicker: function () {
-            if (doubanPicker) {
+            if (doubanPickerTool) {
                 let loadingHtml = `
                 <div style='background: #000; opacity: 0.3; position: fixed; top: 0px; left: 0px; width: 100%; height: 100%;'></div>
                 <div style="border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #3498db; width: 30px; height: 30px; animation: db_search_turn 2s linear infinite; margin: 20px; margin-left: 45%; top: 45%; position: absolute;"></div>`
 
                 let loadingRoot = document.createElement('div');
                 loadingRoot.innerHTML = loadingHtml;
-                let id = 'doubanLoading-' + doubanPicker.sessionId;
+                let id = 'doubanLoading-' + doubanPickerTool.sessionId;
                 loadingRoot.setAttribute('id', id);
                 document.documentElement.append(loadingRoot);
 
-                doubanPicker.initDoubanPicker(iframeUrl);
-                GM_addStyle(`:root>[${doubanPicker.sessionId}] { color-scheme: initial; box-shadow: none !important; display: block !important; height: 100vh !important; left: 0px !important; max-height: none !important; max-width: none !important; min-height: unset !important; min-width: unset !important; opacity: 1 !important; pointer-events: auto !important; position: fixed !important; top: 0px !important; visibility: visible !important; width: 100% !important; z-index: 2147483647 !important; background: transparent !important; border-width: 0px !important; border-style: initial !important; border-color: initial !important; border-image: initial !important; border-radius: 0px !important; margin: 0px !important; outline: 0px !important; padding: 0px !important;}`);
-                doubanPicker.showPicker(function () {
+                doubanPickerTool.initDoubanPicker(iframeUrl);
+                GM_addStyle(`:root>[${doubanPickerTool.sessionId}] { color-scheme: initial; box-shadow: none !important; display: block !important; height: 100vh !important; left: 0px !important; max-height: none !important; max-width: none !important; min-height: unset !important; min-width: unset !important; opacity: 1 !important; pointer-events: auto !important; position: fixed !important; top: 0px !important; visibility: visible !important; width: 100% !important; z-index: 2147483647 !important; background: transparent !important; border-width: 0px !important; border-style: initial !important; border-color: initial !important; border-image: initial !important; border-radius: 0px !important; margin: 0px !important; outline: 0px !important; padding: 0px !important;}`);
+                doubanPickerTool.showPicker(function () {
                     loadingRoot.remove();
                 }, function (msg) {
                     logger.log(msg);
@@ -671,8 +960,8 @@
             }
         },
         quitPicker: function () {
-            if (doubanPicker && doubanPicker.pickerRoot) {
-                doubanPicker.quitPicker();
+            if (doubanPickerTool && doubanPickerTool.pickerRoot) {
+                doubanPickerTool.quitPicker();
             }
         }
     }
