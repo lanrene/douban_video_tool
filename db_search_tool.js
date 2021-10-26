@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         豆瓣电影划词搜索助手
-// @version      0.1.7
+// @version      0.1.8
 // @namespace    https://github.com/lanrene/douban_video_tool
-// @description  通过滑动选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
+// @description  在页面中通过滑动鼠标选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
 // @icon         https://img3.doubanio.com/f/movie/d59b2715fdea4968a450ee5f6c95c7d7a2030065/pics/movie/apple-touch-icon.png
 // @author       lenrene
 // @license      MIT
@@ -284,7 +284,7 @@
         },
     };
 
-    //豆瓣搜索引擎2 使用api
+    //豆瓣搜索引擎2 使用api 接口评分不太准确 有imdb评分
     const doubanSearchByApi = {
         code: "db2",
         codeText: "豆瓣2",
@@ -367,6 +367,7 @@
         searchText: "",               //被搜索内容
         searchVideoList: [],            //当前搜索视频列表
         searchVideoInfo: null,          //当前搜索视频内容
+        searchSelectTitle: '',                //列表选中的视频标题
         Execute: function (h_onloadfn) {
             this.ResetSearchResult();
             let title = this.searchText;
@@ -374,7 +375,24 @@
                 this.searchVideoList = videoList;
                 if (options.searchPattern == 'automatic') {
                     if (videoList && videoList.length > 0) {
-                        this.searchEngineObj.SearchVideoInfo(videoList[0].subjectId).then((result) => {
+                        let subjectId = videoList[0].subjectId
+                        // 如果在列表中选择过视频，切换引擎后重新选中该视频
+                        if (this.searchSelectTitle) {
+                            try {
+                                videoList.forEach((v, i) => {
+                                    if (v && v.title == this.searchSelectTitle) {
+                                        subjectId = v.subjectId;
+                                        throw new Error('EndForEach');
+                                    }
+                                })
+                            } catch (e) {
+                                if (e.message != 'EndForEach') {
+                                    throw e;
+                                }
+                            }
+                        }
+
+                        this.searchEngineObj.SearchVideoInfo(subjectId).then((result) => {
                             this.searchVideoInfo = result;
                             h_onloadfn();
                         });
@@ -522,6 +540,7 @@
                     // 列表点击事件
                     $panel.find(StringFormat("#panelBody{0} .db_search_video_list", randomCode)).click(function () {
                         let subjectId = $(this).attr('data-id');
+                        Search.searchSelectTitle = $(this).attr('data-name');
                         self.Loading($panel, randomCode);
                         Search.UpdateVideoInfo(subjectId, function () {
                             self.Update(randomCode);
@@ -554,6 +573,7 @@
 
             $panel.find(StringFormat("#panelBody{0} .db_search_video_list", randomCode)).click(function () {
                 let subjectId = $(this).attr('data-id');
+                Search.searchSelectTitle = $(this).attr('data-name');
                 self.Loading($panel, randomCode);
                 Search.UpdateVideoInfo(subjectId, function () {
                     self.Update(randomCode);
@@ -566,7 +586,7 @@
             let videoList = Search.searchVideoList;
             if (videoList && videoList.length > 0) {
                 let itemTemplate = `
-                    <div class="db_search_video_list" style="margin-top: 5px;height: 70px;position: relative;" data-id="{4}">
+                    <div class="db_search_video_list" style="margin-top: 5px;height: 70px;position: relative;" data-id="{4}" data-name="{2}">
                         <div style="float: left;margin-right:5px"><img style="width: 48px;height: 68px;" src="{1}" onerror="javascript:this.src='https://img3.doubanio.com/f/movie/b6dc761f5e4cf04032faa969826986efbecd54bb/pics/movie/movie_default_small.png'" ></div>
                         <div>
                             <div style="width: 320px; font-size: 18px; font-weight: bold; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; word-break: break-all;">{7} {2}</div>
@@ -758,19 +778,19 @@
             let temp = []
             if (elem) {
                 const forFn = function (ele) {
-                    if (ele.childNodes.length > 0&&ele.nodeName!='A') {
+                    if (ele.childNodes.length > 0 && ele.nodeName != 'A') {
                         let children = Array.from(ele.childNodes);
                         children.forEach((c) => {
                             forFn(c);
                         })
                     } else {
                         let text = ele.textContent;
-                        if (ele.nodeName=='INPUT') {
+                        if (ele.nodeName == 'INPUT') {
                             text = ele.value;
-                        } else if (ele.nodeName=='A') {
+                        } else if (ele.nodeName == 'A') {
                             text = ele.innerText;
                         }
-                        
+
                         if (text && text.trim()) {
                             temp.push(text.trim());
                         }
@@ -915,11 +935,11 @@
             pickerRoot.onload = function (e) {
                 let ifDoc = pickerRoot.contentDocument || {};
                 let title = ifDoc.title;
-             
+
                 if (title && (title.indexOf("404") >= 0 || title.indexOf("错误") >= 0 || title.indexOf('no such file') >= 0)) {
                     self.quitPicker();
                     if (error) {
-                        error(title||'组件初始化失败');
+                        error(title || '组件初始化失败');
                     }
                     return;
                 }
@@ -1148,6 +1168,7 @@
                 Search.searchType = "word";
                 Search.searchEngine = options.defaultsearchengine;
                 Search.Update();
+                Search.searchSelectTitle = '';
                 Search.Execute(function () {
                     WordSearchPanel.Create($wordSearchIcon, randomCode);
                     $wordSearchIcon.removeClass('animate');
