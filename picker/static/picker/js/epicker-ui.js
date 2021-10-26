@@ -27,8 +27,7 @@
         sendMessageToParent({
             what: 'filterElementAtPoint',
             mx: ev.clientX,
-            my: ev.clientY,
-            broad: ev.ctrlKey,
+            my: ev.clientY
         })
     };
 

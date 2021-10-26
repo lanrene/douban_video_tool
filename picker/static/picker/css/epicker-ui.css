@@ -89,7 +89,7 @@ html#ublock0-epicker,
     opacity: 0.1;
 }
 
-#ublock0-epicker svg {
+#ublock0-epicker body > svg {
     cursor: crosshair;
     box-sizing: border-box;
     height: 100%;
@@ -98,22 +98,22 @@ html#ublock0-epicker,
     top: 0;
     width: 100%;
 }
-#ublock0-epicker.paused svg {
+#ublock0-epicker.paused body > svg {
     cursor: not-allowed;
 }
-#ublock0-epicker svg > path:first-child {
+#ublock0-epicker body > svg > path:first-child {
     fill: rgba(0,0,0,0.5);
     fill-rule: evenodd;
 }
-#ublock0-epicker svg > path + path {
+#ublock0-epicker body > svg > path + path {
     stroke: #F00;
     stroke-width: 0.5px;
     fill: rgba(255,63,63,0.20);
 }
 
-#ublock0-epicker.preview svg > path {
+#ublock0-epicker.preview body > svg > path {
     fill: rgba(0,0,0,0.10);
 }
-#ublock0-epicker.preview svg > path + path {
+#ublock0-epicker.preview body > svg > path + path {
     stroke: none;
 }
