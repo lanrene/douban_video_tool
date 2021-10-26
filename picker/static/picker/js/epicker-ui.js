@@ -46,7 +46,7 @@
         }
 
         if (y > height - dialogHeight) {
-            y = width - dialogHeight - 2;
+            y = height - dialogHeight - 2;
         }
 
         dialog.style.top = y + 'px';
