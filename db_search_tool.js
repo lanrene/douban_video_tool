@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         豆瓣电影划词搜索助手
-// @version      0.1.9
+// @version      0.2.0
 // @namespace    https://github.com/lanrene/douban_video_tool
 // @description  在页面中通过滑动鼠标选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
 // @icon         https://img3.doubanio.com/f/movie/d59b2715fdea4968a450ee5f6c95c7d7a2030065/pics/movie/apple-touch-icon.png
@@ -15,6 +15,7 @@
 // @connect      cdn.jsdelivr.net
 // @connect      movie.querydata.org
 // @connect      douban.com
+// @connect      www.imdb.com
 // @require      https://cdn.jsdelivr.net/npm/jquery@2.2.3/dist/jquery.min.js
 // @require      https://cdn.jsdelivr.net/gh/zyufstudio/jQuery@3a09ff54b33fc2ae489b5083174698b3fa83f4a7/jPopBox/dist/jPopBox.min.js
 // ==/UserScript==
@@ -191,6 +192,22 @@
             }
             return videoList;
         },
+
+        /**
+         * 解析String 为 dom 元素
+         * @param {String} text - 文档字符
+         * @returns {Document} 文档对象
+         * @example
+         * Utils.ParseDomFromString('<di>a</div>') output Document
+         */
+        ParseDomFromString: function (text) {
+            if (!text) {
+                return new Document();
+            }
+
+            let parser = new DOMParser();
+            return parser.parseFromString(text, "text/html");
+        },
     }
 
     // 豆瓣搜索引擎1 爬虫模式
@@ -209,9 +226,7 @@
                     onload: function (response) {
                         let videoList = [];
                         if (response.status == 200) {
-                            let responseText = response.responseText;
-                            let parser = new DOMParser();
-                            let htmlDoc = parser.parseFromString(responseText, "text/html");
+                            let htmlDoc = Utils.ParseDomFromString(response.responseText);
                             videoList = Utils.ParseVideoListDom(htmlDoc, '.result-list .result');
                         } else {
                             Logger.warn(response.statusText);
@@ -223,6 +238,7 @@
             })
         },
         SearchVideoInfo: function (subjectId) {
+            let self = this;
             return new Promise((resolve, reject) => {
                 if (!subjectId) {
                     resolve(null);
@@ -234,37 +250,43 @@
                     url: url,
                     onload: function (response) {
                         if (response.status == 200) {
-                            let responseText = response.responseText;
                             let doubanInfo = {};
-                            let parser = new DOMParser();
-                            let htmlDoc = parser.parseFromString(responseText, "text/html");
+                            let htmlDoc = Utils.ParseDomFromString(response.responseText);
 
                             if (htmlDoc) {
-                                let scriptDocs = htmlDoc.getElementsByTagName('script');
-                                if (scriptDocs) {
-                                    let scriptList = Array.prototype.slice.call(scriptDocs);
-                                    scriptList.forEach((item) => {
-                                        if (item.type == 'application/ld+json' && item.innerText) {
-                                            try {
-                                                doubanInfo = JSON.parse(item.innerText.replace(/\r\n/g, '').replace(/\n/g, ''));
+                                let ldJsonDb = $(htmlDoc).find('script[type="application/ld+json"]');
+                                if (ldJsonDb && ldJsonDb.length > 0 && ldJsonDb[0].innerText) {
+                                    try {
+                                        doubanInfo = JSON.parse(ldJsonDb[0].innerText.replace(/\r\n/g, '').replace(/\n/g, ''));
 
-                                                let videoInfo = {
-                                                    title: doubanInfo.name,
-                                                    image: Urls.ImgHandleUrl.replace('{url}', encodeURIComponent(doubanInfo.image)),
-                                                    url: Urls.DbHomePageUrl + doubanInfo.url,
-                                                    description: doubanInfo.description,
-                                                    director: Utils.FmtDbPerson(doubanInfo.director, 2),
-                                                    actor: Utils.FmtDbPerson(doubanInfo.actor, 6),
-                                                    score: doubanInfo.aggregateRating.ratingValue,
-                                                    genre: doubanInfo.genre.join('/'),
-                                                    time: doubanInfo.datePublished,
-                                                }
-                                                resolve(videoInfo);
-                                            } catch (e) {
-                                                Logger.log('解析失败', item.innerText, e)
+                                        let videoInfo = {
+                                            title: doubanInfo.name,
+                                            image: Urls.ImgHandleUrl.replace('{url}', encodeURIComponent(doubanInfo.image)),
+                                            url: Urls.DbHomePageUrl + doubanInfo.url,
+                                            description: doubanInfo.description,
+                                            director: Utils.FmtDbPerson(doubanInfo.director, 2),
+                                            actor: Utils.FmtDbPerson(doubanInfo.actor, 6),
+                                            score: doubanInfo.aggregateRating.ratingValue,
+                                            genre: doubanInfo.genre.join('/'),
+                                            time: doubanInfo.datePublished,
+                                        }
+
+                                        // 获取imdbId
+                                        let imdb_anchor = $(htmlDoc).find('#info span.pl:contains("IMDb")');
+                                        if (imdb_anchor && imdb_anchor.length > 0) {
+                                            let imdbId = imdb_anchor[0].nextSibling.nodeValue.trim();
+                                            if (imdbId) {
+                                                videoInfo.imdbId = imdbId;
+                                                videoInfo.imdbUrl = Urls.ImdbVideoInfoPageUrl.replace('{imdbId}', imdbId);
+
+                                                self.SearchImdbRating(imdbId);
                                             }
                                         }
-                                    })
+
+                                        resolve(videoInfo);
+                                    } catch (e) {
+                                        Logger.log('解析失败', ldJsonDb[0].innerText, e)
+                                    }
                                 }
                             }
                         } else {
@@ -276,6 +298,41 @@
                 });
             });
         },
+
+        // 查询imdb评分 直接替换dom 不是太好的解决方案
+        SearchImdbRating: function (imdbId) {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: Urls.ImdbVideoInfoPageUrl.replace('{imdbId}', imdbId),
+                onload: function (response) {
+                    if (response.status == 200) {
+                        let imdbHtmlDoc = Utils.ParseDomFromString(response.responseText);
+                        let ldJsonImdb = $(imdbHtmlDoc).find('head > script[type="application/ld+json"]');
+
+                        if (ldJsonImdb && ldJsonImdb.length > 0 && ldJsonImdb[0].innerText) {
+                            let select = '.video_info #douban_imdb_score_' + imdbId;
+                            let imdbDom = $(select);
+                            try {
+                                let imdbInfo = JSON.parse(ldJsonImdb[0].innerText.replace(/\r\n/g, '').replace(/\n/g, ''));
+                                if (imdbInfo && imdbInfo.aggregateRating) {
+                                    let imdbRating = imdbInfo.aggregateRating.ratingValue;
+                                    // 替换评分
+                                    if (imdbDom) {
+                                        let imdbScore = imdbRating ? imdbRating.toFixed(1) : '暂无'
+                                        imdbDom.html(imdbScore);
+                                    }
+                                }
+                            } catch (e) {
+                                Logger.log('解析失败', ldJsonImdb[0].innerText, e);
+                                if (imdbDom) {
+                                    imdbDom.html('查询失败');
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        }
     };
 
     //豆瓣搜索引擎2 使用api 接口评分不太准确 有imdb评分
@@ -301,8 +358,7 @@
                             let fmtText = responseText.replace(/\r\n/g, '').replace(/\n/g, '').replace(/\\/g, '');
                             let match = fmtText.match(/{"items":(.*?),"total":(\d+),"limit":(\d+),"more":(.*?)}/);
                             if (match && match[1]) {
-                                let parser = new DOMParser();
-                                let htmlDoc = parser.parseFromString(match[1], "text/html");
+                                let htmlDoc = Utils.ParseDomFromString(match[1]);
                                 videoList = Utils.ParseVideoListDom(htmlDoc, '.result');
                             }
                         } else {
@@ -613,10 +669,15 @@
                 if (videoInfo.score || videoInfo.imdbScore) { // 评分
                     templateArr.push('<div style="position: absolute;top: 5px;right: 5px; display: flex; align-items: center;">');
                     if (videoInfo.score) {
-                        templateArr.push('<a href="{3}" target="_blank" style="color: #494949;text-decoration:none">' + (videoInfo.imdbScore ? Images.DbSvg : '') + '<span style="font-size: 30px">{5}</span></a>');
+                        templateArr.push('<a href="{3}" target="_blank" style="color: #494949;text-decoration:none">' + Images.DbSvg + '<span style="font-size: 30px">{5}</span></a>');
                     }
-                    if (videoInfo.imdbScore) {
-                        templateArr.push((videoInfo.score ? '<span style="padding: 0 5px;"></span>' : '') + '<a href="{11}" target="_blank" style="color: #494949;text-decoration:none">' + Images.ImdbSvg + '<span style="font-size: 30px">{10}</span></a>');
+                    if (videoInfo.imdbScore || videoInfo.imdbId) { // imdb 有评分直接展示 没有评分有id的情况展示loading  豆瓣2不会传imdbId 用来区分
+                        let imdbScoreHtml = (videoInfo.score ? '<span style="padding: 0 5px;"></span>' : '') +
+                            '<a href="{11}" target="_blank" style="color: #494949;text-decoration:none">' + Images.ImdbSvg +
+                            '<span style="font-size: 30px" id="douban_imdb_score_{12}">' +
+                            (videoInfo.imdbScore ? '{10}' : '<span style="border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3498db; width: 20px; height: 20px; animation: db_search_turn 2s linear infinite; margin: 0 5px; display: inline-block"></span>') +
+                            '</span ></a > '
+                        templateArr.push(imdbScoreHtml);
                     }
                     templateArr.push('</div>');
                 }
@@ -647,7 +708,7 @@
 
                 htmlArr.push(Utils.StringFormat(templateArr.join(''), randomCode,
                     videoInfo.title, videoInfo.image, videoInfo.url, videoInfo.description,
-                    videoInfo.score, videoInfo.time, videoInfo.genre, videoInfo.actor, videoInfo.director, videoInfo.imdbScore, videoInfo.imdbUrl));
+                    videoInfo.score, videoInfo.time, videoInfo.genre, videoInfo.actor, videoInfo.director, videoInfo.imdbScore || 0, videoInfo.imdbUrl, videoInfo.imdbId || 0));
             } else {
                 htmlArr.push(`<div style="margin-top: 5px;">未搜索到内容</div></div>`);
             }
