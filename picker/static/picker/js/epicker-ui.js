@@ -1,5 +1,5 @@
 'use strict';
-
+// 代码来自扩展 uBlock Origin https://github.com/gorhill/uBlock/blob/master/src/js/epicker-ui.js
 (() => {
     const $stor = selector => document.querySelector(selector);
 

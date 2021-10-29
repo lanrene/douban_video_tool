@@ -728,7 +728,7 @@
         }
     };
 
-    // 选词
+    // 选词 代码来自扩展 uBlock Origin https://github.com/gorhill/uBlock/blob/master/src/js/scriptlets/epicker.js
     const DoubanPickerTool = {
         sessionId: '',
         iframeHost: '',
@@ -1230,7 +1230,7 @@
                 if ($wordSearchIcon.hasClass('animate')) {
                     return;
                 }
-                
+
                 $wordSearchIcon.addClass('animate');
                 Search.Clear();
                 Panel.Destroy();
