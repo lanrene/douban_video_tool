@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         豆瓣电影划词搜索助手
-// @version      0.2.1
+// @version      0.2.2
 // @namespace    https://github.com/lanrene/douban_video_tool
 // @description  在页面中通过滑动鼠标选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
 // @icon         https://img3.doubanio.com/f/movie/d59b2715fdea4968a450ee5f6c95c7d7a2030065/pics/movie/apple-touch-icon.png
@@ -25,7 +25,7 @@
 
     // 配置参数
     const SettingOptions = {
-        defaultsearchengine: "db",      //默认搜索引擎
+        defaultsearchengine: "db",      // 默认搜索引擎
         searchPattern: "automatic",     // 搜索模式
         selectPattern: "select",        // 划词模式
         selectKey: "Ctrl",              // 划词键
@@ -185,8 +185,7 @@
                         url: Urls.DbVideoInfoPageUrl.replace('{subjectId}', id),
                         title,
                         description: $(item).find('p').html() || '',
-                        cast: cast,
-                        genre: $(item).find('.title span').html() || '',
+                        cast: cast
                     }
                     videoList.push(videoInfo);
                 });
@@ -210,6 +209,9 @@
             return parser.parseFromString(text, "text/html");
         },
     }
+
+    // 随机因子 用于元素属性后缀 以防止属性名称重复
+    const randomCode = Utils.DateFormat(new Date(), "yyMM").toString() + (Math.floor(Math.random() * 900000) + 100000).toString();
 
     // 豆瓣搜索引擎1 爬虫模式
     const DoubanSearchByDom = {
@@ -312,7 +314,7 @@
                         let ldJsonImdb = $(imdbHtmlDoc).find('head > script[type="application/ld+json"]');
 
                         if (ldJsonImdb && ldJsonImdb.length > 0 && ldJsonImdb[0].innerText) {
-                            let select = '.video_info #douban_imdb_score_' + imdbId;
+                            let select = Utils.StringFormat('.videoInfo{0} #imdbScore{0}_' + imdbId, randomCode);
                             let imdbDom = $(select);
                             try {
                                 let imdbInfo = JSON.parse(ldJsonImdb[0].innerText.replace(/\r\n/g, '').replace(/\n/g, ''));
@@ -326,7 +328,7 @@
                                 // 替换评分
                                 if (imdbDom) {
                                     if (imdbScore) {
-                                        imdbDom.removeClass('douban_tool_score_loading');
+                                        imdbDom.removeClass(Utils.StringFormat('loading{0}', randomCode));
                                         imdbDom.html(imdbScore);
                                         imdbDom.parents('a').attr('title', `${imdbRatingCount} 人参与评分`);
                                     } else {
@@ -420,14 +422,13 @@
     };
 
     const Search = {
-        searchEngineList: {},       //搜索引擎实例列表
-        searchEngine: "",           //当前搜索引擎。 db:豆瓣
-        searchEngineObj: {},        //当前搜索引擎实例
-        searchType: "word",         //搜索类型。word(划词搜索)/text(输入文本搜索)
-        searchText: "",             //被搜索内容
-        searchVideoList: [],        //当前搜索视频列表
-        searchVideoInfo: null,      //当前搜索视频内容
-        searchSelectTitle: '',      //列表选中的视频标题
+        searchEngineList: {},       // 搜索引擎实例列表
+        searchEngine: "",           // 当前搜索引擎。 db:豆瓣
+        searchEngineObj: {},        // 当前搜索引擎实例
+        searchText: "",             // 被搜索内容
+        searchVideoList: [],        // 当前搜索视频列表
+        searchVideoInfo: null,      // 当前搜索视频内容
+        searchSelectTitle: '',      // 列表选中的视频标题
         Execute: function (h_onloadfn) {
             this.ResetSearchResult();
             let title = this.searchText;
@@ -509,10 +510,10 @@
         }
     };
 
-    //面板
+    // 面板
     const Panel = {
         popBoxEl: {},
-        Create: function (title, placement, isShowArrow, randomCode, content, shownFn) {
+        Create: function (title, placement, isShowArrow, content, shownFn) {
             let self = this;
             $(self.popBoxEl).jPopBox({
                 title: title,
@@ -538,21 +539,21 @@
         Destroy: function () {
             $(this.popBoxEl).jPopBox("destroy");
         },
-        CreateStyle: function (randomCode) {
+        CreateStyle: function () {
             let s = "";
             s += Utils.StringFormat("#panelBody{0}>div input,#panelBody{0}>div select{padding:3px;margin:0;background:#fff;font-size:14px;border:1px solid #a9a9a9;color:black;width:auto;height:25px}#panelBody{0} a{text-decoration:none;border-bottom:0;color:#494949}", randomCode);
-            s += Utils.StringFormat("#panelBody{0} .douban_tool_head{display:flex;align-items:center;height:30px}#panelBody{0} .douban_tool_logo{width:35px;margin:0;vertical-align:bottom}#panelBody{0} .douban_tool_list_btn{margin:10px 0 0 10px;color:#999;font-size:10px;cursor:pointer}", randomCode);
-            s += Utils.StringFormat("#panelBody{0} .douban_tool_content .douban_tool_content_no_data{margin:30px 40%}#panelBody{0} .douban_tool_content .douban_tool_content_loading{border:5px solid #f3f3f3;border-radius:50%;border-top:5px solid #3498db;width:30px;height:30px;animation:db_search_turn 2s linear infinite;margin:20px;margin-left:45%}", randomCode);
-            s += Utils.StringFormat("#panelBody{0} .douban_tool_score{position:absolute;top:5px;right:5px;display:flex;align-items:center;column-gap:10px}#panelBody{0} .douban_tool_score>a{display:flex;align-items:center}#panelBody{0} .douban_tool_score svg{background:0}#panelBody{0} .douban_tool_score span{font-size:30px}#panelBody{0} .douban_tool_score span.douban_tool_score_loading{border:3px solid #f3f3f3;border-radius:50%;border-top:3px solid #3498db;width:20px;height:20px;animation:db_search_turn 2s linear infinite;margin:5px;display:inline-block}", randomCode);
-            s += Utils.StringFormat("#panelBody{0} .douban_tool_info .douban_tool_info_title{font-size:18px;font-weight:bold;margin-top:5px}#panelBody{0} .douban_tool_info .douban_tool_info_left{float:left;margin-right:5px}#panelBody{0} .douban_tool_info .douban_tool_info_left>img{width:120px;height:168px}#panelBody{0} .douban_tool_info .douban_tool_info_right{max-height:168px}#panelBody{0} .douban_tool_info .douban_tool_info_right_item>span{color:#666}", randomCode);
-            s += Utils.StringFormat("#panelBody{0} .douban_tool_list{overflow:auto;height:200px;margin-top:5px}#panelBody{0} .douban_tool_list::-webkit-scrollbar{display:none}#panelBody{0} .douban_tool_list .douban_tool_list_item{margin-top:5px;height:70px;position:relative}#panelBody{0} .douban_tool_list_item .douban_tool_list_item_left{float:left;margin-right:5px}#panelBody{0} .douban_tool_list_item .douban_tool_list_item_left>img{width:48px;height:68px}#panelBody{0} .douban_tool_list_item .douban_tool_list_item_right .douban_tool_list_item_right_title{width:320px;font-size:18px;margin-bottom:9px;font-weight:bold;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;word-break:break-all}#panelBody{0} .douban_tool_list_item .douban_tool_list_item_right .douban_tool_list_item_right_score{position:absolute;right:5px;top:0;font-size:25px}#panelBody{0} .douban_tool_list_item .douban_tool_list_item_right .douban_tool_list_item_right_info{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;word-break:break-all;font-size:12px;border:0}", randomCode);
+            s += Utils.StringFormat("#panelBody{0} .head{0}{display:flex;align-items:center;height:30px}#panelBody{0} .logo{0}{width:35px;margin:0;vertical-align:bottom}#panelBody{0} .listBtn{0}{margin:10px 0 0 10px;color:#999;font-size:10px;cursor:pointer}", randomCode);
+            s += Utils.StringFormat("#panelBody{0} .content{0} .noData{0}{margin:30px 40%}#panelBody{0} .content{0} .loading{0}{border:5px solid #f3f3f3;border-radius:50%;border-top:5px solid #3498db;width:30px;height:30px;animation:db_search_turn 2s linear infinite;margin:20px;margin-left:45%}", randomCode);
+            s += Utils.StringFormat("#panelBody{0} .score{0}{position:absolute;top:5px;right:5px;display:flex;align-items:center;column-gap:10px}#panelBody{0} .score{0}>a{display:flex;align-items:center}#panelBody{0} .score{0} svg{background:0}#panelBody{0} .score{0} span{font-size:30px}#panelBody{0} .score{0} span.loading{0}{border:3px solid #f3f3f3;border-radius:50%;border-top:3px solid #3498db;width:20px;height:20px;animation:db_search_turn 2s linear infinite;margin:5px;display:inline-block}", randomCode);
+            s += Utils.StringFormat("#panelBody{0} .info{0} .title{0}{font-size:18px;font-weight:bold;margin:5px 0}#panelBody{0} .info{0} .left{0}{float:left;margin:3px 5px 0 0;display:block;position:relative;width:120px;height:168px;background-repeat:no-repeat;background-position:50%;background-image:url({1});background-size:100%}#panelBody{0} .info{0} .left{0}>img{width:120px;height:168px}#panelBody{0} .info{0} .right{0}{min-height:175px}#panelBody{0} .info{0} .right{0} .item{0}>span{color:#666}", randomCode, Images.VideoDefaultImg);
+            s += Utils.StringFormat("#panelBody{0} .list{0}{overflow:auto;height:200px;margin-top:5px}#panelBody{0} .list{0}::-webkit-scrollbar{display:none}#panelBody{0} .list{0} .listItem{0}{margin-top:5px;height:70px;position:relative}#panelBody{0} .listItem{0} .left{0}{float:left;margin-right:5px;display:block;position:relative;width:48px;height:68px;background-repeat:no-repeat;background-position:50%;background-image:url({1});background-size:100%}#panelBody{0} .listItem{0} .left{0}>img{width:48px;height:68px}#panelBody{0} .listItem{0} .right{0} .title{0}{width:320px;font-size:18px;margin-bottom:9px;font-weight:bold;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;word-break:break-all}#panelBody{0} .listItem{0} .right{0} .score{0}{position:absolute;right:5px;top:0;font-size:25px}#panelBody{0} .listItem{0} .right{0} .info{0}{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;word-break:break-all;font-size:12px;border:0}", randomCode, Images.VideoDefaultImg);
             return s;
         }
     };
 
-    //划词搜索面板
+    // 划词搜索面板
     const WordSearchPanel = {
-        Create: function (popBoxEl, randomCode) {
+        Create: function (popBoxEl) {
             let self = this;
             let searchEngineOptionsHtml = "";
             for (let k in Search.searchEngineList) {
@@ -566,165 +567,164 @@
                 }
             }
             let wordSearchPanelHtml = '';
-            let headHtml = Utils.StringFormat(`<div class="douban_tool_head"><a href="${Urls.DbHomePageUrl}/" target="_blank"><img class="douban_tool_logo" src="${Images.IconBase64}" title="去豆瓣电影" /></a><select>{1}</select><div id="show_search_list_btn" class="douban_tool_list_btn">展示搜索列表</div></div>`, randomCode, searchEngineOptionsHtml);
+            let headHtml = Utils.StringFormat(`<div class="head{0}"><a href="${Urls.DbHomePageUrl}/" target="_blank"><img class="logo{0}" src="${Images.IconBase64}" title="去豆瓣电影" /></a><select>{1}</select><div id="showSearchList_{0}" class="listBtn{0}">展示搜索列表</div></div>`, randomCode, searchEngineOptionsHtml);
             wordSearchPanelHtml += headHtml;
-            wordSearchPanelHtml += '<div class="douban_tool_content">';
+            wordSearchPanelHtml += Utils.StringFormat('<div class="content{0}">', randomCode);
             if (SettingOptions.searchPattern == 'automatic') {
-                wordSearchPanelHtml += self.GetVideoInfoHtml(randomCode);
+                wordSearchPanelHtml += self.GetVideoInfoHtml();
             } else if (SettingOptions.searchPattern == 'manual') {
-                wordSearchPanelHtml += self.GetVideoListHtml(randomCode);
+                wordSearchPanelHtml += self.GetVideoListHtml();
             }
             wordSearchPanelHtml += '</div>';
 
             Panel.popBoxEl = popBoxEl;
-            Panel.Create("", "auto bottom", false, randomCode, wordSearchPanelHtml, function ($panel) {
-                //搜索引擎
+            Panel.Create("", "auto bottom", false, wordSearchPanelHtml, function ($panel) {
+                // 搜索引擎
                 $panel.find(Utils.StringFormat("#panelBody{0} div:eq(0) select:eq(0)", randomCode)).change(function (e) {
                     Search.searchEngine = $(this).find("option:selected").val();
-                    self.Loading($panel, randomCode);
+                    self.Loading($panel);
                     Search.Update();
                     Search.Execute(function () {
                         if (SettingOptions.searchPattern == 'automatic') {
-                            self.Update(randomCode);
+                            self.Update();
                         } else if (SettingOptions.searchPattern == 'manual') {
-                            self.ShowSearchList(randomCode);
+                            self.ShowSearchList();
                         }
                     });
                 });
 
                 // 搜索列表
-                $panel.find(Utils.StringFormat("#panelBody{0} #show_search_list_btn", randomCode)).click(function (e) {
-                    self.ShowSearchList(randomCode);
+                $panel.find(Utils.StringFormat("#panelBody{0} #showSearchList_{0}", randomCode)).click(function (e) {
+                    self.ShowSearchList();
                 });
 
                 if (SettingOptions.searchPattern == 'manual') {
                     // 列表点击事件
-                    $panel.find(Utils.StringFormat("#panelBody{0} .douban_tool_list_item", randomCode)).click(function () {
+                    $panel.find(Utils.StringFormat("#panelBody{0} .listItem{0}", randomCode)).click(function () {
                         let subjectId = $(this).attr('data-id');
                         Search.searchSelectTitle = $(this).attr('data-name');
-                        self.Loading($panel, randomCode);
+                        self.Loading($panel);
                         Search.UpdateVideoInfo(subjectId, function () {
-                            self.Update(randomCode);
+                            self.Update();
                         });
                     });
                 }
 
                 if (SettingOptions.searchPattern == 'manual' || !Search.searchVideoList || Search.searchVideoList.length == 0) {
-                    $(Utils.StringFormat("#panelBody{0} #show_search_list_btn", randomCode)).hide();
+                    $(Utils.StringFormat("#panelBody{0} #showSearchList_{0}", randomCode)).hide();
                 }
 
             });
         },
-        Update: function (randomCode) {
+        Update: function () {
             let self = this;
             Panel.Update(function ($panel) {
-                let html = self.GetVideoInfoHtml(randomCode);
-                $panel.find(Utils.StringFormat("#panelBody{0} .douban_tool_content", randomCode)).html("").html(html);
+                let html = self.GetVideoInfoHtml();
+                $panel.find(Utils.StringFormat("#panelBody{0} .content{0}", randomCode)).html("").html(html);
             });
             if (Search.searchVideoList && Search.searchVideoList.length > 0) {
-                $(Utils.StringFormat("#panelBody{0} #show_search_list_btn", randomCode)).css("display", "inline");
+                $(Utils.StringFormat("#panelBody{0} #showSearchList_{0}", randomCode)).css("display", "inline");
             }
         },
-        ShowSearchList: function (randomCode) {
+        ShowSearchList: function () {
             let self = this;
 
             let html = self.GetVideoListHtml();
             let $panel = $("div.JPopBox-tip-white");
-            $panel.find(Utils.StringFormat("#panelBody{0} .douban_tool_content", randomCode)).html("").html(html);
+            $panel.find(Utils.StringFormat("#panelBody{0} .content{0}", randomCode)).html("").html(html);
 
-            $panel.find(Utils.StringFormat("#panelBody{0} .douban_tool_list_item", randomCode)).click(function () {
+            $panel.find(Utils.StringFormat("#panelBody{0} .listItem{0}", randomCode)).click(function () {
                 let subjectId = $(this).attr('data-id');
                 Search.searchSelectTitle = $(this).attr('data-name');
-                self.Loading($panel, randomCode);
+                self.Loading($panel);
                 Search.UpdateVideoInfo(subjectId, function () {
-                    self.Update(randomCode);
+                    self.Update();
                 });
             });
-            $(Utils.StringFormat("#panelBody{0} #show_search_list_btn", randomCode)).hide();
+            $(Utils.StringFormat("#panelBody{0} #showSearchList_{0}", randomCode)).hide();
         },
-        GetVideoListHtml: function (randomCode) {
+        GetVideoListHtml: function () {
             let htmlArr = [];
             let videoList = Search.searchVideoList;
             if (videoList && videoList.length > 0) {
                 let itemTemplate = `
-                    <div class="douban_tool_list_item" data-id="{4}" data-name="{2}">
-                        <div class="douban_tool_list_item_left"><img src="{1}" onerror="javascript:this.src='${Images.VideoDefaultImg}'" ></div>
-                        <div class="douban_tool_list_item_right">
-                            <div class="douban_tool_list_item_right_title">{7} {2}</div>
-                            <div class="douban_tool_list_item_right_score">{3}</div>
-                            <div class="douban_tool_list_item_right_info">{6}</div>
-                            <div class="douban_tool_list_item_right_info">{5}</div>
+                    <div class="listItem{0}" data-id="{4}" data-name="{2}">
+                        <div class="left{0}"><img src="{1}" onerror="javascript:this.src='${Images.VideoDefaultImg}'" ></div>
+                        <div class="right{0}">
+                            <div class="title{0}">{2}</div>
+                            <div class="score{0}">{3}</div>
+                            <div class="info{0}">{6}</div>
+                            <div class="info{0}">{5}</div>
                         </div>
                     </div>`;
 
-                htmlArr.push('<div class="douban_tool_list">');
+                htmlArr.push(Utils.StringFormat('<div class="list{0}">', randomCode));
                 videoList.forEach((item) => {
-                    let videoItem = Utils.StringFormat(itemTemplate, randomCode, item.image, item.title, item.score, item.subjectId, item.description, item.cast, item.genre);
+                    let videoItem = Utils.StringFormat(itemTemplate, randomCode, item.image, item.title, item.score, item.subjectId, item.description, item.cast);
                     htmlArr.push(videoItem);
                 })
                 htmlArr.push('</div>');
             } else {
-                htmlArr.push('<div class="douban_tool_content_no_data">未搜索到内容</div>');
+                htmlArr.push(Utils.StringFormat('<div class="noData{0}">未搜索到内容</div>', randomCode));
             }
 
             return htmlArr.join('');
         },
-        GetVideoInfoHtml: function (randomCode) {
-            let htmlArr = [];
+        GetVideoInfoHtml: function () {
+            let videoInfoHtml = '';
             let videoInfo = Search.searchVideoInfo;
             if (videoInfo) {
                 let templateArr = [];
 
-                templateArr.push('<div class="video_info">');
+                templateArr.push('<div class="videoInfo{0}">');
 
                 if (videoInfo.score || videoInfo.imdbScore || videoInfo.imdbId) { // 评分
-                    templateArr.push('<div class="douban_tool_score">');
+                    templateArr.push('<div class="score{0}">');
                     if (videoInfo.score) {
                         templateArr.push(`<a href="{3}" target="_blank" title="{13} 人参与评分">${Images.DbSvg}<span>{5}</span></a>`);
                     }
                     if (videoInfo.imdbScore || videoInfo.imdbId) { // imdb 有评分直接展示 没有评分有id的情况展示loading  豆瓣2不会传imdbId 用来区分
                         templateArr.push(`<a href="{11}" target="_blank" title="{14} 人参与评分">${Images.ImdbSvg}
-                                            <span class="${videoInfo.imdbScore ? '' : 'douban_tool_score_loading'}" id="douban_imdb_score_{12}">{10}</span>
+                                            <span class="${videoInfo.imdbScore ? '' : 'loading{0}'}" id="imdbScore{0}_{12}">{10}</span>
                                           </a>`);
                     }
                     templateArr.push('</div>');
                 }
 
                 templateArr.push(`
-                                <div class="douban_tool_info">
-                                    <div class="douban_tool_info_title"><a href="{3}" target="_blank">{1}</a></div>
-                                    <div class="douban_tool_info_left"><img src="{2}" onerror="javascript:this.src='${Images.VideoDefaultImg}'"/></div>
-                                    <div class="douban_tool_info_right">`);
+                                <div class="info{0}">
+                                    <div class="title{0}"><a href="{3}" target="_blank">{1}</a></div>
+                                    <div class="left{0}"><img src="{2}" onerror="javascript:this.src='${Images.VideoDefaultImg}'"/></div>
+                                    <div class="right{0}">`);
                 if (videoInfo.director) {
-                    templateArr.push('<div class="douban_tool_info_right_item"><span>导演</span>：{9}</div>');
+                    templateArr.push('<div class="item{0}"><span>导演</span>：{9}</div>');
                 }
                 if (videoInfo.actor) {
-                    templateArr.push('<div class="douban_tool_info_right_item"><span>主演</span>：{8}</div>');
+                    templateArr.push('<div class="item{0}"><span>主演</span>：{8}</div>');
                 }
                 if (videoInfo.genre) {
-                    templateArr.push('<div class="douban_tool_info_right_item"><span>类型</span>：{7}</div>');
+                    templateArr.push('<div class="item{0}"><span>类型</span>：{7}</div>');
                 }
                 if (videoInfo.time) {
-                    templateArr.push('<div class="douban_tool_info_right_item"><span>时间</span>：{6}</div>');
+                    templateArr.push('<div class="item{0}"><span>时间</span>：{6}</div>');
                 }
                 if (videoInfo.description) {
-                    templateArr.push('<div class="douban_tool_info_right_item"><span>简介</span>：{4}</div>');
+                    templateArr.push('<div class="item{0}"><span>简介</span>：{4}</div>');
                 }
-                templateArr.push(`  </div>
-                                </div>`)
+                templateArr.push(`</div></div>`);
 
-                htmlArr.push(Utils.StringFormat(templateArr.join(''), randomCode,
+                videoInfoHtml = Utils.StringFormat(templateArr.join(''), randomCode,
                     videoInfo.title, videoInfo.image, videoInfo.url, videoInfo.description,
                     videoInfo.score, videoInfo.time, videoInfo.genre, videoInfo.actor, videoInfo.director,
-                    videoInfo.imdbScore || '', videoInfo.imdbUrl, videoInfo.imdbId || 0, videoInfo.ratingCount || 0, videoInfo.imdbRatingCount || 0));
+                    videoInfo.imdbScore || '', videoInfo.imdbUrl, videoInfo.imdbId || 0, videoInfo.ratingCount || 0, videoInfo.imdbRatingCount || 0);
             } else {
-                htmlArr.push(`<div class="douban_tool_content_no_data">未搜索到内容</div></div>`);
+                videoInfoHtml = Utils.StringFormat('<div class="noData{0}">未搜索到内容</div>', randomCode);
             }
 
-            return htmlArr.join('');
+            return videoInfoHtml;
         },
-        Loading: function (panel, randomCode) {
-            panel.find(Utils.StringFormat("#panelBody{0} .douban_tool_content", randomCode)).html("").html('<div class="douban_tool_content_loading"></div>');
+        Loading: function (panel) {
+            panel.find(Utils.StringFormat("#panelBody{0} .content{0}", randomCode)).html("").html(Utils.StringFormat('<div class="loading{0}"></div>', randomCode));
         }
     };
 
@@ -760,9 +760,7 @@
         },
 
         getElementBoundingClientRect: function (elem) {
-            let rect = typeof elem.getBoundingClientRect === 'function'
-                ? elem.getBoundingClientRect()
-                : { height: 0, left: 0, top: 0, width: 0 };
+            let rect = typeof elem.getBoundingClientRect === 'function' ? elem.getBoundingClientRect() : { height: 0, left: 0, top: 0, width: 0 };
 
             if (rect.width !== 0 && rect.height !== 0) {
                 return rect;
@@ -784,12 +782,7 @@
                 if (rect.bottom > bottom) { bottom = rect.bottom; }
             }
 
-            return {
-                height: bottom - top,
-                left,
-                top,
-                width: right - left
-            };
+            return { height: bottom - top, left, top, width: right - left };
         },
 
         highlightElements: function (elems, force) {
@@ -1019,20 +1012,22 @@
     }
 
     const Picker = {
+        styleObj: null,
         showPicker: function () {
             if (DoubanPickerTool) {
-                let loadingHtml = `
-                <div style='background: #000; opacity: 0.3; position: fixed; top: 0px; left: 0px; width: 100%; height: 100%;'></div>
-                <div style="border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #3498db; width: 30px; height: 30px; animation: db_search_turn 2s linear infinite; margin: 20px; margin-left: 45%; top: 45%; position: absolute;"></div>`
+                DoubanPickerTool.initDoubanPicker(Urls.IframePageHost);
 
                 let loadingRoot = document.createElement('div');
-                loadingRoot.innerHTML = loadingHtml;
-                let id = 'doubanLoading-' + DoubanPickerTool.sessionId;
-                loadingRoot.setAttribute('id', id);
+                loadingRoot.innerHTML = `
+                    <div style='background: #000; opacity: 0.3; position: fixed; top: 0px; left: 0px; width: 100%; height: 100%;'></div>
+                    <div style="border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #3498db; width: 30px; height: 30px; animation: db_search_turn 2s linear infinite; margin: 20px; margin-left: 45%; top: 45%; position: absolute;"></div>`;
+                loadingRoot.setAttribute('id', 'doubanLoading-' + DoubanPickerTool.sessionId);
                 document.documentElement.append(loadingRoot);
 
-                DoubanPickerTool.initDoubanPicker(Urls.IframePageHost);
-                GM_addStyle(`:root>[${DoubanPickerTool.sessionId}] { color-scheme: initial; box-shadow: none !important; display: block !important; height: 100vh !important; left: 0px !important; max-height: none !important; max-width: none !important; min-height: unset !important; min-width: unset !important; opacity: 1 !important; pointer-events: auto !important; position: fixed !important; top: 0px !important; visibility: visible !important; width: 100% !important; z-index: 2147483647 !important; background: transparent !important; border-width: 0px !important; border-style: initial !important; border-color: initial !important; border-image: initial !important; border-radius: 0px !important; margin: 0px !important; outline: 0px !important; padding: 0px !important;}`);
+                if (!this.styleObj) {
+                    this.styleObj = GM_addStyle(`:root>[${DoubanPickerTool.sessionId}] { color-scheme: initial; box-shadow: none !important; display: block !important; height: 100vh !important; left: 0px !important; max-height: none !important; max-width: none !important; min-height: unset !important; min-width: unset !important; opacity: 1 !important; pointer-events: auto !important; position: fixed !important; top: 0px !important; visibility: visible !important; width: 100% !important; z-index: 2147483647 !important; background: transparent !important; border-width: 0px !important; border-style: initial !important; border-color: initial !important; border-image: initial !important; border-radius: 0px !important; margin: 0px !important; outline: 0px !important; padding: 0px !important}`);
+                }
+
                 DoubanPickerTool.showPicker(function () {
                     loadingRoot.remove();
                 }, function (msg) {
@@ -1051,36 +1046,31 @@
     //设置面板
     const SettingPanel = {
         config: [{ title: "", name: "", type: "", attrName: "", item: [{ code: "", text: "" }] }],
-        Create: function (popBoxEl, randomCode) {
+        Create: function (popBoxEl) {
             let self = this;
             let settingHtml = [];
             this.InitConfig();
-            settingHtml.push('<div style="padding-left: 15px;display: inline-block;">');
+            settingHtml.push(Utils.StringFormat('<div class="setting{0}">', randomCode));
             for (let index = 0; index < this.config.length; index++) {
                 let configItem = this.config[index];
-                settingHtml.push('<div style="padding-bottom: 30px; max-width: 600px;">');
-                settingHtml.push(Utils.StringFormat('<div style="font-size: 14px; padding-bottom: 3px;">{0}</div>', configItem.title));
+                settingHtml.push(Utils.StringFormat(`<div class="configItem{0}"><div class="title{0}">{1}</div><div class="right{0}">`, randomCode, configItem.title));
                 for (let itemIndex = 0; itemIndex < configItem.item.length; itemIndex++) {
                     let itemObj = configItem.item[itemIndex];
-                    settingHtml.push(Utils.StringFormat('<div style="margin-left: 10px; float: left;"><label style="font-size: 14px; cursor: pointer;"><input type="radio" name="search{3}{0}" style="cursor: pointer;vertical-align: initial" value="{1}">{2}</label></div>', randomCode, itemObj.code, itemObj.text, configItem.name));
+                    settingHtml.push(Utils.StringFormat('<label><input type="radio" name="search{3}{0}" value="{1}">{2}</label>', randomCode, itemObj.code, itemObj.text, configItem.name));
                 }
-                settingHtml.push('</div>');
+                settingHtml.push('</div></div>');
             }
 
-            settingHtml.push('<div>');
-            settingHtml.push(Utils.StringFormat('<button id="saveBtn{0}">保存</button>', randomCode));
-            settingHtml.push(Utils.StringFormat('<span id="saveStatus{0}" style="display:none;margin-left:10px;background-color: #fff1a8;padding: 3px;">设置已保存。</span>', randomCode));
-            settingHtml.push('</div>');
-            settingHtml.push('</div>');
+            settingHtml.push(Utils.StringFormat(`<div class="bottom{0}"><button id="saveBtn{0}">保存</button><span id="saveStatus{0}" class="msg{0}">设置已保存。</span></div></div>`, randomCode));
 
             let settingHtmlStr = settingHtml.join("");
             Panel.popBoxEl = popBoxEl;
-            Panel.Create("豆瓣电影划词搜索助手设置", "auto bottom", false, randomCode, settingHtmlStr, function ($panel) {
+            Panel.Create("豆瓣电影划词搜索助手设置", "auto bottom", false, settingHtmlStr, function ($panel) {
                 $panel.css({
                     position: "fixed",
                     top: "20px"
                 });
-                self.Update(randomCode);
+                self.Update();
                 //保存设置
                 $panel.find(Utils.StringFormat("#panelBody{0} #saveBtn{0}", randomCode)).click(function (e) {
                     self.config.forEach((item) => {
@@ -1097,7 +1087,7 @@
                 });
             });
         },
-        Update: function (randomCode) {
+        Update: function () {
             let self = this;
             Utils.GetSettingOptions();
             Panel.Update(function ($panel) {
@@ -1109,7 +1099,7 @@
         },
         InitConfig: function () {
             this.config = [];
-            let engineConfigObj = { title: "默认搜索引擎：", name: "Engine", attrName: "defaultsearchengine", item: [] };
+            let engineConfigObj = { title: "默认搜索引擎", name: "Engine", attrName: "defaultsearchengine", item: [] };
             for (let k in Search.searchEngineList) {
                 if (Search.searchEngineList.hasOwnProperty(k)) {
                     let v = Search.searchEngineList[k].codeText;
@@ -1118,14 +1108,20 @@
             }
             this.config.push(engineConfigObj);
 
-            let patternConfigObj = { title: "搜索模式：", name: "Pattern", attrName: "searchPattern", item: [{ code: "automatic", text: "自动" }, { code: "manual", text: "手动" }] };
+            let patternConfigObj = { title: "搜索模式", name: "Pattern", attrName: "searchPattern", item: [{ code: "automatic", text: "自动" }, { code: "manual", text: "手动" }] };
             this.config.push(patternConfigObj);
-            let selectConfigObj = { title: "划词模式：", name: "Select", attrName: "selectPattern", item: [{ code: "select", text: "划词" }, { code: "hold", text: "划词键 + 划词" }] };
+            let selectConfigObj = { title: "划词模式", name: "Select", attrName: "selectPattern", item: [{ code: "select", text: "划词" }, { code: "hold", text: "划词键 + 划词" }] };
             this.config.push(selectConfigObj);
-            let keyConfigObj = { title: "划词键：", name: "Key", attrName: "selectKey", item: [{ code: "Ctrl", text: "Ctrl" }, { code: "Alt", text: "Alt" }] };
+            let keyConfigObj = { title: "划词键", name: "Key", attrName: "selectKey", item: [{ code: "Ctrl", text: "Ctrl" }, { code: "Alt", text: "Alt" }] };
             this.config.push(keyConfigObj);
-            let positionConfigObj = { title: "图标位置：", name: "Position", attrName: "selectIconPosition", item: [{ code: "right", text: "右" }, { code: "left", text: "左" }, { code: "top", text: "上" }] };
+            let positionConfigObj = { title: "图标位置", name: "Position", attrName: "selectIconPosition", item: [{ code: "right", text: "右" }, { code: "left", text: "左" }, { code: "top", text: "上" }] };
             this.config.push(positionConfigObj);
+        },
+        CreateStyle: function () {
+            let s = "";
+            s += Utils.StringFormat("#panelBody{0} .setting{0} .configItem{0}{display:flex;padding:5px}#panelBody{0} .configItem{0} .title{0}{width:90px;font-size: 14px}#panelBody{0} .configItem{0} .right{0}{margin-left:10px}#panelBody{0} .configItem{0} .right{0} label{cursor:pointer;display:inline-block;min-width:60px}#panelBody{0} .configItem{0} .right{0} input{cursor:pointer;vertical-align:middle;margin-top:-2px;margin-bottom:1px}", randomCode);
+            s += Utils.StringFormat("#panelBody{0} .setting{0} button{border:0.5px solid black;margin:5px;padding:1px 5px;border-radius:revert;font:revert}#panelBody{0} .setting{0} .bottom{0} .msg{0}{display: none; margin-left:5px;background-color:#fff1a8;padding:3px}", randomCode);
+            return s;
         }
     };
 
@@ -1133,7 +1129,6 @@
     const WebSearchlate = function () {
         const $doc = $(document);
         const $body = $("html body");
-        let randomCode = "yyMM000000";    //属性随机码，年月加六位随机码。用于元素属性后缀，以防止属性名称重复。
         const createHtml = function () {
             const wordSearchIconHtml = Utils.StringFormat('<div id="wordSearch{0}" class="wordSearch{0}"><div class="wordSearchIcon{0}"></div></div>', randomCode);
             $body.append(Utils.StringFormat('<div id="webSearch{0}">', randomCode) + wordSearchIconHtml + '</div>');
@@ -1144,13 +1139,14 @@
                 method: "get",
                 url: "https://cdn.jsdelivr.net/gh/zyufstudio/jQuery@master/jPopBox/dist/jPopBox.min.css",
                 onload: function (r) {
-                    GM_addStyle(r.responseText + ".JPopBox-tip-white{width: 482px;max-width: 550px;min-width: 450px;}");
+                    GM_addStyle(r.responseText + ".JPopBox-tip-white{width: 482px;max-width: 550px;min-width: 450px}");
                 }
             });
             let s = "@keyframes db_search_turn{0%{transform:rotate(0deg)}25%{transform:rotate(90deg)}50%{transform:rotate(180deg)}75%{transform:rotate(270deg)}100%{transform:rotate(360deg)}}";
-            s += Utils.StringFormat(".wordSearch{0}{background-color: rgb(245, 245, 245);box-sizing: content-box;cursor: pointer;z-index: 2147483647;border-width: 1px;border-style: solid;border-color: rgb(220, 220, 220);border-image: initial;border-radius: 5px;padding: 0.5px;position: absolute;display: none} .wordSearch{0}.animate{animation: db_search_turn 5s linear infinite;}", randomCode);
-            s += Utils.StringFormat(".wordSearchIcon{0}{background-image: url({1});background-size: 25px;height: 25px;width: 25px;}", randomCode, Images.IconBase64);
-            s += Panel.CreateStyle(randomCode);
+            s += Utils.StringFormat(".wordSearch{0}{background-color: rgb(245, 245, 245);box-sizing: content-box;cursor: pointer;z-index: 2147483647;border-width: 1px;border-style: solid;border-color: rgb(220, 220, 220);border-image: initial;border-radius: 5px;padding: 0.5px;position: absolute;display: none} .wordSearch{0}.animate{animation: db_search_turn 5s linear infinite}", randomCode);
+            s += Utils.StringFormat(".wordSearchIcon{0}{background-image: url({1});background-size: 25px;height: 25px;width: 25px}", randomCode, Images.IconBase64);
+            s += Panel.CreateStyle();
+            s += SettingPanel.CreateStyle();
             GM_addStyle(s);
         };
         const ShowWordSearchIcon = function () {
@@ -1238,12 +1234,11 @@
                 let selectText = selecter.toString().trim();
                 Utils.GetSettingOptions();
                 Search.searchText = selectText;
-                Search.searchType = "word";
                 Search.searchEngine = SettingOptions.defaultsearchengine;
                 Search.Update();
                 Search.searchSelectTitle = '';
                 Search.Execute(function () {
-                    WordSearchPanel.Create($wordSearchIcon, randomCode);
+                    WordSearchPanel.Create($wordSearchIcon);
                     $wordSearchIcon.removeClass('animate');
                     $wordSearchIcon.hide();
                 });
@@ -1254,7 +1249,7 @@
                 $("div#wordSearch" + randomCode).hide();
                 Search.Clear();
                 Panel.Destroy();
-                SettingPanel.Create($body, randomCode);
+                SettingPanel.Create($body);
             });
 
             GM_registerMenuCommand("进入取词模式", function () {
@@ -1265,7 +1260,6 @@
             });
         };
         this.init = function () {
-            randomCode = Utils.DateFormat(new Date(), "yyMM").toString() + (Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000).toString();
             Search.RegisterEngine();
             createStyle();
             createHtml();
