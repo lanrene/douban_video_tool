@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         豆瓣电影划词搜索助手
-// @version      0.2.2
+// @version      0.2.3
 // @namespace    https://github.com/lanrene/douban_video_tool
 // @description  在页面中通过滑动鼠标选中视频名词搜索豆瓣信息。脚本根据@Johnny Li[网页搜索助手]修改
 // @icon         https://img3.doubanio.com/f/movie/d59b2715fdea4968a450ee5f6c95c7d7a2030065/pics/movie/apple-touch-icon.png
@@ -171,21 +171,28 @@
                 liDoc.each((index, item) => {
                     let titleADom = $(item).find('.title a');
                     let title = titleADom.html() || '';
-                    let onclickStr = titleADom.attr("onclick");
+                    let onclickStr = titleADom.attr("onclick"); // moreurl(this,{i: '14', query: 'hh', from: 'dou_search_movie', sid: 25741647, qcat: '1002'})
                     let id = 0;
                     if (onclickStr) {
                         id = onclickStr.split(',')[4].replace(/[^0-9]/ig, '');
                     }
                     let image = $(item).find('img').attr("src");
                     let cast = ($(item).find('.subject-cast').html() || '').replace('/  / ', '/').replace(/原名:(.*?)\//g, '');
+                    let socreDoc = $(item).find('.rating_nums');
+                    let score = socreDoc.html() || '';
+                    let ratingCount = '';
+                    if (score && socreDoc.next() && socreDoc.next().html()) {
+                        let count = socreDoc.next().html().replace(/[^0-9]/ig, '');
+                        if (count) {
+                            ratingCount = `${count} 人参与评分`;
+                        }
+                    }
                     let videoInfo = {
                         subjectId: id,
                         image: Urls.ImgHandleUrl.replace('{url}', encodeURIComponent(image)),
-                        score: $(item).find('.rating_nums').html() || '',
                         url: Urls.DbVideoInfoPageUrl.replace('{subjectId}', id),
-                        title,
                         description: $(item).find('p').html() || '',
-                        cast: cast
+                        title, score, ratingCount, cast: cast,
                     }
                     videoList.push(videoInfo);
                 });
@@ -319,11 +326,11 @@
                             try {
                                 let imdbInfo = JSON.parse(ldJsonImdb[0].innerText.replace(/\r\n/g, '').replace(/\n/g, ''));
                                 let imdbScore = '';
-                                let imdbRatingCount = ''
+                                let imdbRatingCount = '';
                                 if (imdbInfo && imdbInfo.aggregateRating) {
                                     let imdbRating = imdbInfo.aggregateRating.ratingValue;
                                     imdbRatingCount = imdbInfo.aggregateRating.ratingCount || 0;
-                                    imdbScore = imdbRating ? imdbRating.toFixed(1) : '暂无'
+                                    imdbScore = imdbRating ? imdbRating.toFixed(1) : '';
                                 }
                                 // 替换评分
                                 if (imdbDom) {
@@ -448,7 +455,7 @@
                                 })
                             } catch (e) {
                                 if (e.message != 'EndForEach') {
-                                    throw e;
+                                    Logger.error(e);
                                 }
                             }
                         }
@@ -541,10 +548,10 @@
         },
         CreateStyle: function () {
             let s = "";
-            s += Utils.StringFormat("#panelBody{0}>div input,#panelBody{0}>div select{padding:3px;margin:0;background:#fff;font-size:14px;border:1px solid #a9a9a9;color:black;width:auto;height:25px}#panelBody{0} a{text-decoration:none;border-bottom:0;color:#494949}", randomCode);
+            s += Utils.StringFormat("#panelBody{0}>div input,#panelBody{0}>div select{padding:3px;margin:0;background:#fff;font-size:14px;border:1px solid #a9a9a9;color:black;width:auto;height:25px;display:inline-block;position: static;}#panelBody{0} a{text-decoration:none;border-bottom:0;color:#494949}", randomCode);
             s += Utils.StringFormat("#panelBody{0} .head{0}{display:flex;align-items:center;height:30px}#panelBody{0} .logo{0}{width:35px;margin:0;vertical-align:bottom}#panelBody{0} .listBtn{0}{margin:10px 0 0 10px;color:#999;font-size:10px;cursor:pointer}", randomCode);
-            s += Utils.StringFormat("#panelBody{0} .content{0} .noData{0}{margin:30px 40%}#panelBody{0} .content{0} .loading{0}{border:5px solid #f3f3f3;border-radius:50%;border-top:5px solid #3498db;width:30px;height:30px;animation:db_search_turn 2s linear infinite;margin:20px;margin-left:45%}", randomCode);
-            s += Utils.StringFormat("#panelBody{0} .score{0}{position:absolute;top:5px;right:5px;display:flex;align-items:center;column-gap:10px}#panelBody{0} .score{0}>a{display:flex;align-items:center}#panelBody{0} .score{0} svg{background:0}#panelBody{0} .score{0} span{font-size:30px}#panelBody{0} .score{0} span.loading{0}{border:3px solid #f3f3f3;border-radius:50%;border-top:3px solid #3498db;width:20px;height:20px;animation:db_search_turn 2s linear infinite;margin:5px;display:inline-block}", randomCode);
+            s += Utils.StringFormat("#panelBody{0} .content{0} .noData{0}{margin:30px 40%}#panelBody{0} .content{0} .loading{0}{border:5px solid #f3f3f3;border-radius:50%;border-top:5px solid #3498db;width:30px;height:30px;animation:db_search_turn{0} 2s linear infinite;margin:20px;margin-left:45%}", randomCode);
+            s += Utils.StringFormat("#panelBody{0} .score{0}{position:absolute;top:5px;right:5px;display:flex;align-items:center;column-gap:10px}#panelBody{0} .score{0}>a{display:flex;align-items:center}#panelBody{0} .score{0} svg{background:0}#panelBody{0} .score{0} span{font-size:30px}#panelBody{0} .score{0} span.loading{0}{border:3px solid #f3f3f3;border-radius:50%;border-top:3px solid #3498db;width:20px;height:20px;animation:db_search_turn{0} 2s linear infinite;margin:5px;display:inline-block}", randomCode);
             s += Utils.StringFormat("#panelBody{0} .info{0} .title{0}{font-size:18px;font-weight:bold;margin:5px 0}#panelBody{0} .info{0} .left{0}{float:left;margin:3px 5px 0 0;display:block;position:relative;width:120px;height:168px;background-repeat:no-repeat;background-position:50%;background-image:url({1});background-size:100%}#panelBody{0} .info{0} .left{0}>img{width:120px;height:168px}#panelBody{0} .info{0} .right{0}{min-height:175px}#panelBody{0} .info{0} .right{0} .item{0}>span{color:#666}", randomCode, Images.VideoDefaultImg);
             s += Utils.StringFormat("#panelBody{0} .list{0}{overflow:auto;height:200px;margin-top:5px}#panelBody{0} .list{0}::-webkit-scrollbar{display:none}#panelBody{0} .list{0} .listItem{0}{margin-top:5px;height:70px;position:relative}#panelBody{0} .listItem{0} .left{0}{float:left;margin-right:5px;display:block;position:relative;width:48px;height:68px;background-repeat:no-repeat;background-position:50%;background-image:url({1});background-size:100%}#panelBody{0} .listItem{0} .left{0}>img{width:48px;height:68px}#panelBody{0} .listItem{0} .right{0} .title{0}{width:320px;font-size:18px;margin-bottom:9px;font-weight:bold;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;word-break:break-all}#panelBody{0} .listItem{0} .right{0} .score{0}{position:absolute;right:5px;top:0;font-size:25px}#panelBody{0} .listItem{0} .right{0} .info{0}{white-space:nowrap;text-overflow:ellipsis;overflow:hidden;word-break:break-all;font-size:12px;border:0}", randomCode, Images.VideoDefaultImg);
             return s;
@@ -649,10 +656,10 @@
             if (videoList && videoList.length > 0) {
                 let itemTemplate = `
                     <div class="listItem{0}" data-id="{4}" data-name="{2}">
-                        <div class="left{0}"><img src="{1}" onerror="javascript:this.src='${Images.VideoDefaultImg}'" ></div>
+                        <div class="left{0}"><img src="{1}" onerror="javascript:this.src='${Images.VideoDefaultImg}'"></div>
                         <div class="right{0}">
                             <div class="title{0}">{2}</div>
-                            <div class="score{0}">{3}</div>
+                            <div class="score{0}" title="{7}">{3}</div>
                             <div class="info{0}">{6}</div>
                             <div class="info{0}">{5}</div>
                         </div>
@@ -660,7 +667,7 @@
 
                 htmlArr.push(Utils.StringFormat('<div class="list{0}">', randomCode));
                 videoList.forEach((item) => {
-                    let videoItem = Utils.StringFormat(itemTemplate, randomCode, item.image, item.title, item.score, item.subjectId, item.description, item.cast);
+                    let videoItem = Utils.StringFormat(itemTemplate, randomCode, item.image, item.title, item.score, item.subjectId, item.description, item.cast, item.ratingCount);
                     htmlArr.push(videoItem);
                 })
                 htmlArr.push('</div>');
@@ -716,7 +723,8 @@
                 videoInfoHtml = Utils.StringFormat(templateArr.join(''), randomCode,
                     videoInfo.title, videoInfo.image, videoInfo.url, videoInfo.description,
                     videoInfo.score, videoInfo.time, videoInfo.genre, videoInfo.actor, videoInfo.director,
-                    videoInfo.imdbScore || '', videoInfo.imdbUrl, videoInfo.imdbId || 0, videoInfo.ratingCount || 0, videoInfo.imdbRatingCount || 0);
+                    videoInfo.imdbScore || '', videoInfo.imdbUrl, videoInfo.imdbId || 0,
+                    videoInfo.ratingCount || 0, videoInfo.imdbRatingCount || 0);
             } else {
                 videoInfoHtml = Utils.StringFormat('<div class="noData{0}">未搜索到内容</div>', randomCode);
             }
@@ -737,9 +745,7 @@
         pickerRoot: null,
 
         initDoubanPicker: function (iframeHost) {
-            if (!iframeHost || this.sessionId) { return; }
-
-            this.sessionId = this.randomToken();
+            if (!iframeHost) { return; }
             this.iframeHost = iframeHost;
 
             // 主页面监听message事件,接收子组件的值
@@ -749,14 +755,6 @@
                     self.onDialogMessage(e.data)
                 }
             }, false);
-        },
-
-        randomToken: function () {
-            const n = Math.random();
-            return String.fromCharCode(n * 26 + 97) +
-                Math.floor(
-                    (0.25 + n * 0.75) * Number.MAX_SAFE_INTEGER
-                ).toString(36).slice(-8);
         },
 
         getElementBoundingClientRect: function (elem) {
@@ -891,13 +889,11 @@
                 return null;
             }
             if (!this.pickerRoot) { return null; }
-            const magicAttr = `${this.sessionId}-clickblind`;
-            this.pickerRoot.setAttribute(magicAttr, '');
+            this.pickerRoot.style.pointerEvents = 'none';
             let elems = document.elementsFromPoint(x, y);
             elems = elems.filter(ele => ele.name != 'myFrame') || [];
             let elem = elems[0];
-
-            this.pickerRoot.removeAttribute(magicAttr);
+            this.pickerRoot.style.pointerEvents = '';
             return elem;
         },
 
@@ -952,7 +948,7 @@
                 case 'start':
                     this.startPicker();
                     if (this.targetElements.length === 0) {
-                        this.highlightElements([], true);
+                        this.highlightElements([document.body], true);
                     }
                     break;
                 case 'quitPicker':
@@ -978,69 +974,33 @@
             this.pickerRoot.contentWindow.postMessage(msg, this.iframeHost);
         },
 
-        showPicker: function (success, error) {
+        showPicker: function () {
             const self = this;
             if (this.pickerRoot) {
                 return;
             }
+
+            // loading
+            let loadingRoot = document.createElement('div');
+            loadingRoot.innerHTML = `
+                <div style='z-index:2147483647;background: #000; opacity: 0.3; position: fixed; top: 0px; left: 0px; width: 100%; height: 100%;'></div>
+                <div style="z-index:2147483647;border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #3498db; width:4vw; height:4vw;min-width:30px;min-height:30px;max-width:50px;max-height:50px;animation: db_search_turn${randomCode} 2s linear infinite; margin: 20px; margin-left: 48%; top: 45%; position: fixed"></div>`;
+            document.documentElement.append(loadingRoot);
+
+            // iframe
             const pickerRoot = document.createElement('iframe');
-            pickerRoot.setAttribute(this.sessionId, '');
             pickerRoot.setAttribute('name', 'myFrame');
-            pickerRoot.setAttribute('src', this.iframeHost + '/picker.html')
-            pickerRoot.onload = function (e) {
-                let ifDoc = pickerRoot.contentDocument || {};
-                let title = ifDoc.title;
-
-                if (title && (title.indexOf("404") >= 0 || title.indexOf("错误") >= 0 || title.indexOf('no such file') >= 0)) {
-                    self.quitPicker();
-                    if (error) {
-                        error(title || '组件初始化失败');
-                    }
-                    return;
-                }
-
-                if (success) {
-                    success();
-                }
+            pickerRoot.setAttribute('src', this.iframeHost + '/picker.html');
+            pickerRoot.style = `color-scheme:initial;box-shadow:none !important;display:block !important;height:100vh !important;left:0px !important;max-height:none !important;max-width:none !important;min-height:unset !important;min-width:unset !important;opacity:1 !important;pointer-events:auto !important;position:fixed !important;top: 0px !important;visibility:visible !important;width:100% !important;z-index:2147483647 !important;background:transparent !important;border-width:0px !important;border-style:initial !important;border-color:initial !important;border-image:initial !important;border-radius:0px !important;margin:0px !important;outline:0px !important;padding: 0px !important`;
+            pickerRoot.onload = function () {
                 setTimeout(() => {
+                    loadingRoot.remove();
                     self.sendMessageToIframe({ what: 'connectionAccepted' })
-                });
+                }, 500);
             };
             this.pickerRoot = pickerRoot;
             document.documentElement.append(pickerRoot);
         },
-    }
-
-    const Picker = {
-        styleObj: null,
-        showPicker: function () {
-            if (DoubanPickerTool) {
-                DoubanPickerTool.initDoubanPicker(Urls.IframePageHost);
-
-                let loadingRoot = document.createElement('div');
-                loadingRoot.innerHTML = `
-                    <div style='background: #000; opacity: 0.3; position: fixed; top: 0px; left: 0px; width: 100%; height: 100%;'></div>
-                    <div style="border: 5px solid #f3f3f3; border-radius: 50%; border-top: 5px solid #3498db; width: 30px; height: 30px; animation: db_search_turn 2s linear infinite; margin: 20px; margin-left: 45%; top: 45%; position: absolute;"></div>`;
-                loadingRoot.setAttribute('id', 'doubanLoading-' + DoubanPickerTool.sessionId);
-                document.documentElement.append(loadingRoot);
-
-                if (!this.styleObj) {
-                    this.styleObj = GM_addStyle(`:root>[${DoubanPickerTool.sessionId}] { color-scheme: initial; box-shadow: none !important; display: block !important; height: 100vh !important; left: 0px !important; max-height: none !important; max-width: none !important; min-height: unset !important; min-width: unset !important; opacity: 1 !important; pointer-events: auto !important; position: fixed !important; top: 0px !important; visibility: visible !important; width: 100% !important; z-index: 2147483647 !important; background: transparent !important; border-width: 0px !important; border-style: initial !important; border-color: initial !important; border-image: initial !important; border-radius: 0px !important; margin: 0px !important; outline: 0px !important; padding: 0px !important}`);
-                }
-
-                DoubanPickerTool.showPicker(function () {
-                    loadingRoot.remove();
-                }, function (msg) {
-                    Logger.log(msg);
-                    loadingRoot.remove();
-                });
-            }
-        },
-        quitPicker: function () {
-            if (DoubanPickerTool && DoubanPickerTool.pickerRoot) {
-                DoubanPickerTool.quitPicker();
-            }
-        }
     }
 
     //设置面板
@@ -1142,8 +1102,8 @@
                     GM_addStyle(r.responseText + ".JPopBox-tip-white{width: 482px;max-width: 550px;min-width: 450px}");
                 }
             });
-            let s = "@keyframes db_search_turn{0%{transform:rotate(0deg)}25%{transform:rotate(90deg)}50%{transform:rotate(180deg)}75%{transform:rotate(270deg)}100%{transform:rotate(360deg)}}";
-            s += Utils.StringFormat(".wordSearch{0}{background-color: rgb(245, 245, 245);box-sizing: content-box;cursor: pointer;z-index: 2147483647;border-width: 1px;border-style: solid;border-color: rgb(220, 220, 220);border-image: initial;border-radius: 5px;padding: 0.5px;position: absolute;display: none} .wordSearch{0}.animate{animation: db_search_turn 5s linear infinite}", randomCode);
+            let s = Utils.StringFormat("@keyframes db_search_turn{0}{0%{transform:rotate(0deg)}25%{transform:rotate(90deg)}50%{transform:rotate(180deg)}75%{transform:rotate(270deg)}100%{transform:rotate(360deg)}}", randomCode);
+            s += Utils.StringFormat(".wordSearch{0}{background-color: rgb(245, 245, 245);box-sizing: content-box;cursor: pointer;z-index: 2147483647;border-width: 1px;border-style: solid;border-color: rgb(220, 220, 220);border-image: initial;border-radius: 5px;padding: 0.5px;position: absolute;display: none} .wordSearch{0}.animate{animation: db_search_turn{0} 5s linear infinite}", randomCode);
             s += Utils.StringFormat(".wordSearchIcon{0}{background-image: url({1});background-size: 25px;height: 25px;width: 25px}", randomCode, Images.IconBase64);
             s += Panel.CreateStyle();
             s += SettingPanel.CreateStyle();
@@ -1167,7 +1127,11 @@
                     }
 
                     if ((e.ctrlKey || e.metaKey) && e.altKey && e.keyCode == '71') { // Ctrl + Alt + G
-                        Picker.showPicker();
+                        if ($('html#ublock0-epicker-douban-tool').length > 0) {
+                            return;
+                        }
+
+                        DoubanPickerTool.showPicker();
                     }
                 },
                 "keyup": function (e) {
@@ -1246,6 +1210,9 @@
         };
         const RegMenu = function () {
             GM_registerMenuCommand("设置", function () {
+                if (DoubanPickerTool.pickerRoot) {
+                    DoubanPickerTool.quitPicker();
+                }
                 $("div#wordSearch" + randomCode).hide();
                 Search.Clear();
                 Panel.Destroy();
@@ -1253,10 +1220,13 @@
             });
 
             GM_registerMenuCommand("进入取词模式", function () {
+                if (DoubanPickerTool.pickerRoot) {
+                    return;
+                }
                 $("div#wordSearch" + randomCode).hide();
                 Search.Clear();
                 Panel.Destroy();
-                Picker.showPicker();
+                DoubanPickerTool.showPicker();
             });
         };
         this.init = function () {
@@ -1266,6 +1236,7 @@
             ShowWordSearchIcon();
             RegMenu();
             Utils.GetSettingOptions();
+            DoubanPickerTool.initDoubanPicker(Urls.IframePageHost)
         };
     };
 
